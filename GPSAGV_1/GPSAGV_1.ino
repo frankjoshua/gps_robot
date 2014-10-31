@@ -27,8 +27,11 @@ int adc_key_in  = 0;
 #define btnLEFT   3
 #define btnSELECT 4
 #define btnNONE   5
-
-int buttonreaddone;
+//Menu System
+#define MENU_LENGTH 4
+char* mMenu[]={"Show Position", "Add Way Point", "Delete Way Point",
+"Clear Way Points"};
+int mMenuPosition = 0;
 
 #define led 13
 int x4=0;
@@ -68,30 +71,83 @@ void printFloat(double f, int digits = 2);
     pinMode(led, OUTPUT);
     //Setup input buttons
     pinMode(buttons, INPUT);
+    //Show initial menu
+    displayMenu();
   }
 
   void loop(){ 
-  //-------------------------------------------- this is all gps stuff. This is just the example code given from tiny gps library.
-  //----------------------------------------------I deleted the part of the code for the time and date. I did not want it.
-  
-    bool newdata = false;
-    unsigned long start = millis();
-    while (millis() - start < 250)            // get new data every 1/4 of a second
-    {
-      if (feedgps())
-        newdata = true;
+    //Read from gps
+    if (feedgps()){
+      //Dump gps if new data
+      gpsdump(gps);
     }
     
-    if (newdata)
-    {
-      Serial.println("Acquired Data");
-      Serial.println("-------------");
-      gpsdump(gps);
-      Serial.println("-------------");
-     Serial.println();
-    }
+    updateDisplay();
   }
 
+  void updateDisplay(){
+    //Check if a button was pressed
+    int btnPressed = read_LCD_buttons();
+    
+    boolean isPress = true;
+    switch(btnPressed){
+      case btnUP:
+        //Move menu up
+        if(mMenuPosition > 0){
+          mMenuPosition--;
+        }
+      break; 
+      case btnDOWN:
+        //Move menu down
+        if(mMenuPosition < MENU_LENGTH - 1){
+          mMenuPosition++;
+        }
+      break;
+      case btnSELECT:
+        executeCommand(mMenuPosition);
+      break;
+      default:
+        //No buttons pressed
+        isPress = false;
+      break;  
+    }
+    
+    //Diplay menu if changed
+    if(isPress){
+      displayMenu();
+    }
+    //Short delay to prevent rebounce
+    delay(150);
+  }
+
+  void displayMenu(){
+      lcd.clear();
+      lcd.setCursor(0,0);
+      lcd.print(">");
+      lcd.print(mMenu[mMenuPosition]);
+      if(mMenuPosition < MENU_LENGTH){
+        lcd.setCursor(0,1);
+        lcd.print(mMenu[mMenuPosition + 1]);
+      }
+  }
+
+  void executeCommand(int cmd){
+    switch(cmd){
+       case 0:
+       //Display current position
+       lcd.clear();
+       lcd.setCursor(0,0);
+       lcd.print("LAT: ");
+       lcd.print(flat);
+       lcd.setCursor(0,1);
+       lcd.print("LON: ");
+       lcd.print(flon);
+       delay(500);
+       break; 
+    }
+    
+  }
+  
   /**
   * Prints a floating point number to the Serial output
   */
@@ -128,35 +184,32 @@ void printFloat(double f, int digits = 2);
     } 
   }
 
+  
   void gpsdump(TinyGPS &gps){
-    long lat, lon;
     unsigned long age, date, time, chars;
     unsigned short sentences, failed;
   
     feedgps(); // If we don't feed the gps during this long routine, we may drop characters and get checksum errors
-  
+    //Read position
     gps.f_get_position(&flat, &flon, &age);
-    Serial.print("Lat/Long(float): "); printFloat(flat, 7); Serial.print(", "); printFloat(flon, 7);   // print our current posistion
-    Serial.print(" Fix age: "); Serial.print(age); Serial.println("ms.");
+
     feedgps();
-  
+    
+    //Read erros
     gps.stats(&chars, &sentences, &failed);
-    Serial.print("Stats: characters: "); Serial.print(chars); Serial.print(" sentences: "); Serial.print(sentences); Serial.print(" failed checksum: "); Serial.println(failed);
-    if(buttonreaddone!=5){
-      buttonread();
-    }
-    if(buttonreaddone==5){
-      distance();
-    }
+    
   }
   
+  /**
+  * Read gps a return true if new data found
+  */
   bool feedgps(){
-    while (mySerial.available())
-    {
+    bool newData = false;
+    while (mySerial.available()){
       if (gps.encode(mySerial.read()))
-        return true;
+        newData = true;
     }
-    return false;
+    return newData;
   }
   
 //------------------------------below is the part of the code where everything is calculated
@@ -379,6 +432,3 @@ void printFloat(double f, int digits = 2);
    return btnNONE;  // when all others fail, return this...
   }
 
-  void buttonread(){
-  
-  }
