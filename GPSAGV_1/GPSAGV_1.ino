@@ -3,6 +3,8 @@
 #include <SoftwareSerial.h>
 #include <TinyGPS.h>  
 #include <Wire.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_HMC5883_U.h>
 
 //Compass stuff
 int HMC6352Address = 0x42;
@@ -15,6 +17,10 @@ float heading=0;
 int headinggps;
 TinyGPS gps;
 SoftwareSerial mySerial(2, 3);    //used for gps rx and tx pins in use
+
+//Compass Stuff
+Adafruit_HMC5883_Unified mag = Adafruit_HMC5883_Unified(12345);
+float compassHeading;
 
 //LCD stuff
 LiquidCrystal lcd(8, 9, 4, 5, 6, 7); 
@@ -29,7 +35,10 @@ int adc_key_in  = 0;
 #define btnNONE   5
 //Menu System
 #define MENU_LENGTH 4
-char* mMenu[]={"Show Position", "Add Way Point", "Delete Way Point",
+#define CMD_DIRECTION 0
+#define CMD_SHOW_POSITION 1
+#define CMD_ADD_WAY_POINT 2
+char* mMenu[]={"Direction", "Show Position", "Add Way Point", "Delete Way Point",
 "Clear Way Points"};
 int mMenuPosition = 0;
 
@@ -71,6 +80,15 @@ void printFloat(double f, int digits = 2);
     pinMode(led, OUTPUT);
     //Setup input buttons
     pinMode(buttons, INPUT);
+    /* Initialise the compass */
+    if(!mag.begin()){
+      /* There was a problem detecting the HMC5883 ... check your connections */
+      Serial.println("Ooops, no HMC5883 detected ... Check your wiring!");
+      while(1);
+    }
+    //Setup test waypoint
+    mLon[0] = -82.267419;
+    mLat[1] = 28.324603;
     //Show initial menu
     displayMenu();
   }
@@ -81,10 +99,41 @@ void printFloat(double f, int digits = 2);
       //Dump gps if new data
       gpsdump(gps);
     }
-    
+    updateHeading();
     updateDisplay();
   }
 
+  /**
+  * Reades the heading from HMC5883 and update compassHeagin in degrees
+  */
+  void updateHeading(){
+    /* Get a new sensor event */ 
+    sensors_event_t event; 
+    mag.getEvent(&event);
+    
+    // Hold the module so that Z is pointing 'up' and you can measure the heading with x&y
+    // Calculate heading when the magnetometer is level, then correct for signs of axis.
+    float heading = atan2(event.magnetic.y, event.magnetic.x);
+    
+    // Once you have your heading, you must then add your 'Declination Angle', which is the 'Error' of the magnetic field in your location.
+    // Find yours here: http://www.magnetic-declination.com/
+    // Mine is: -13* 2' W, which is ~13 Degrees, or (which we need) 0.22 radians
+    // If you cannot find your Declination, comment out these two lines, your compass will be slightly off.
+    float declinationAngle = 0.01;
+    heading += declinationAngle;
+    
+    // Correct for when signs are reversed.
+    if(heading < 0)
+      heading += 2*PI;
+      
+    // Check for wrap due to addition of declination.
+    if(heading > 2*PI)
+      heading -= 2*PI;
+     
+    // Convert radians to degrees for readability.
+    compassHeading = heading * 180/M_PI; 
+  }
+  
   void updateDisplay(){
     //Check if a button was pressed
     int btnPressed = read_LCD_buttons();
@@ -133,58 +182,29 @@ void printFloat(double f, int digits = 2);
 
   void executeCommand(int cmd){
     switch(cmd){
-       case 0:
-       //Display current position
-       lcd.clear();
-       lcd.setCursor(0,0);
-       lcd.print("LAT: ");
-       lcd.print(flat);
-       lcd.setCursor(0,1);
-       lcd.print("LON: ");
-       lcd.print(flon);
-       delay(500);
-       break; 
+       case CMD_SHOW_POSITION:
+         //Display current position
+         lcd.clear();
+         lcd.setCursor(0,0);
+         lcd.print("LAT: ");
+         lcd.print(flat);
+         lcd.print(" ");
+         lcd.print(compassHeading);
+         lcd.setCursor(0,1);
+         lcd.print("LON: ");
+         lcd.print(flon);
+         lcd.print(" ");
+         lcd.print(getDistance(0, flat, flon));
+         delay(500);
+       break;
+       case CMD_DIRECTION:
+         
+       break;
     }
     
   }
   
-  /**
-  * Prints a floating point number to the Serial output
-  */
-  void printFloat(double number, int digits){
-    // Handle negative numbers
-    if (number < 0.0){
-       Serial.print('-');
-       number = -number;
-    }
-  
-    // Round correctly so that print(1.999, 2) prints as "2.00"
-    double rounding = 0.5;
-    for (uint8_t i=0; i<digits; ++i){
-      rounding /= 10.0;
-    }
-    
-    number += rounding;
-  
-    // Extract the integer part of the number and print it
-    unsigned long int_part = (unsigned long)number;
-    double remainder = number - (double)int_part;
-    Serial.print(int_part);
-  
-    // Print the decimal point, but only if there are digits beyond
-    if (digits > 0)
-      Serial.print("."); 
-    // Extract digits from the remainder one at a time
-    while (digits-- > 0)
-    {
-      remainder *= 10.0;
-      int toPrint = int(remainder);
-      Serial.print(toPrint);
-      remainder -= toPrint; 
-    } 
-  }
-
-  
+ 
   void gpsdump(TinyGPS &gps){
     unsigned long age, date, time, chars;
     unsigned short sentences, failed;
@@ -210,6 +230,36 @@ void printFloat(double f, int digits = 2);
         newData = true;
     }
     return newData;
+  }
+  
+  /**
+  * Returns distance from wayPoint in meters
+  * Pass in the current Latitude and Longitude
+  */
+  int getDistance(int wayPoint, float currentLat, float currentLon){
+    //Convert everthing to radians
+    float waypointLat = radians(mLat[wayPoint]);
+    float waypointLon = radians(mLon[wayPoint]);
+    currentLat = radians(currentLat);
+    currentLon = radians(currentLon);
+    
+    //Find the differance of lat an lon
+    float diffLat = waypointLat - currentLat;
+    float diffLon = waypointLon - currentLon;
+    
+    //Calculate the distance
+    float distance = (sin(diffLat/2.0)*sin(diffLat/2.0));
+    float distance2 = cos(currentLat);
+    distance2 *= cos(waypointLat);
+    distance2 *= sin(diffLon/2.0);
+    distance2 *= sin(diffLon/2.0);
+    distance += distance2;
+    distance = (2*atan2(sqrt(distance),sqrt(1.0-distance)));
+    
+    //Convert to meters
+    distance *= 6371000.0;
+    
+    return distance;
   }
   
 //------------------------------below is the part of the code where everything is calculated
