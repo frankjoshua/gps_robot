@@ -32,11 +32,15 @@ int adc_key_in  = 0;
 #define CMD_NAVIGATE -1
 #define CMD_SHOW_POSITION 0
 #define CMD_ADD_WAY_POINT 1
+#define CMD_NEXT_WAY_POINT 2
+#define CMD_LAST_WAY_POINT 3
 int mMenuPosition = CMD_SHOW_POSITION;
 #define MENU_LENGTH 4
 char* mMenu[]={
 "Show Position",
 "Add Way Point",
+"Next Way Point",
+"Last Way Point",
 "Delete Way Point",
 "Clear Way Points"};
 #define MODE_MENU 0
@@ -183,6 +187,7 @@ void printFloat(double f, int digits = 2);
   void displayMenu(){
       lcd.clear();
       lcd.setCursor(0,0);
+      lcd.print(mCurrentWayPoint);
       lcd.print(">");
       lcd.print(mMenu[mMenuPosition]);
       if(mMenuPosition < MENU_LENGTH){
@@ -220,6 +225,14 @@ void printFloat(double f, int digits = 2);
        case CMD_ADD_WAY_POINT:
          mLat[mCurrentWayPoint] = flat;
          mLon[mCurrentWayPoint] = flon;
+       break;
+       case CMD_NEXT_WAY_POINT:
+         if(mCurrentWayPoint < MAX_WAYPOINTS)
+           mCurrentWayPoint++;
+       break;
+       case CMD_LAST_WAY_POINT:
+         if(mCurrentWayPoint > 0)
+           mCurrentWayPoint--;
        break;
     }
     
