@@ -46,8 +46,9 @@ int mMode = MODE_MENU;
 
 //Store Waypoints
 #define MAX_WAYPOINTS 20
-float mLat[MAX_WAYPOINTS]; //38.629983, -90.596550
+float mLat[MAX_WAYPOINTS]; //38.628967, -90.270577 Science Center
 float mLon[MAX_WAYPOINTS];
+int mCurrentWayPoint = 0;
 
 //Method definitions
 void gpsdump(TinyGPS &gps);
@@ -74,8 +75,8 @@ void printFloat(double f, int digits = 2);
       while(1);
     }
     //Setup test waypoint
-    mLat[0] = 38.629983;
-    mLon[0] = -90.596550;
+    mLat[0] = 38.628967;
+    mLon[0] = -90.270577;
     
     //Show initial menu
     displayMenu();
@@ -210,11 +211,15 @@ void printFloat(double f, int digits = 2);
          lcd.print(compassHeading);
          lcd.setCursor(0,1);
          lcd.print("GPS:");
-         lcd.print(getHeading(0, flat, flon));
+         lcd.print(getHeading(mCurrentWayPoint, flat, flon));
          lcd.print(" ");
          lcd.print("M:");
-         lcd.print(getDistance(0, flat, flon));
+         lcd.print(getDistance(mCurrentWayPoint, flat, flon));
          delay(100);
+       break;
+       case CMD_ADD_WAY_POINT:
+         mLat[mCurrentWayPoint] = flat;
+         mLon[mCurrentWayPoint] = flon;
        break;
     }
     
