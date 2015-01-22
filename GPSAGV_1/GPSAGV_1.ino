@@ -10,7 +10,7 @@
 float flat, flon;
 
 TinyGPS gps;
-SoftwareSerial mySerial(2, 3);    //used for gps rx and tx pins in use
+SoftwareSerial mySerial(2, 255);    //used for gps rx and tx pins in use
 
 //Compass Stuff
 Adafruit_HMC5883_Unified mag = Adafruit_HMC5883_Unified(12345);
@@ -72,7 +72,7 @@ void printFloat(double f, int digits = 2);
     Serial.println("Starting ...");
     
     //Set gps
-    mySerial.begin(4800);
+    mySerial.begin(9600);
 
     /* Initialise the compass */
     if(!mag.begin()){
