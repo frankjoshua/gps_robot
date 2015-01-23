@@ -243,7 +243,7 @@ void printFloat(double f, int digits = 2);
          lcd.print(getHeading(mCurrentWayPoint, flat, flon));
          lcd.print(" ");
          lcd.print("D:");
-         lcd.print(getDistance(mCurrentWayPoint, flat, flon));
+         lcd.print(formatDistance(getDistance(mCurrentWayPoint, flat, flon)));
          //delay(100);
        break;
        case CMD_ADD_WAY_POINT:
@@ -261,6 +261,10 @@ void printFloat(double f, int digits = 2);
     }
     
   }
+ 
+ float formatDistance(int meters){
+  return meters / (float) 1000;
+ }
  
   void gpsdump(TinyGPS &gps){
     unsigned long age, date, time, chars;
@@ -283,7 +287,9 @@ void printFloat(double f, int digits = 2);
   bool feedgps(){
     bool newData = false;
     while (mySerial.available()){
-      if (gps.encode(mySerial.read()))
+      char data = mySerial.read();
+      Serial.print(data);
+      if (gps.encode(data))
         newData = true;
     }
     return newData;
