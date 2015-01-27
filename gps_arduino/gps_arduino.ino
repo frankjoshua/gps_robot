@@ -68,7 +68,7 @@ void printFloat(double f, int digits = 2);
     lcd.print("Starting..."); // print a simple message
  
     //Set up diagnostic output
-    Serial.begin(115200);
+    Serial.begin(9600);
     Serial.println("Starting ...");
     
     //Set gps
