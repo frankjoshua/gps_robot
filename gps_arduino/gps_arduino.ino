@@ -210,6 +210,8 @@ void printFloat(double f, int digits = 2);
   }
 
   void executeCommand(int cmd){
+    float heading;
+    int distance;
     switch(cmd){
        case CMD_SHOW_POSITION:
          //Display current position
@@ -240,11 +242,26 @@ void printFloat(double f, int digits = 2);
          lcd.print(compassHeading);
          lcd.setCursor(0,1);
          lcd.print("G:");
-         lcd.print(getHeading(mCurrentWayPoint, flat, flon));
+         heading = getHeading(mCurrentWayPoint, flat, flon);
+         lcd.print(heading);
          lcd.print(" ");
          lcd.print("D:");
-         lcd.print(formatDistance(getDistance(mCurrentWayPoint, flat, flon)));
-         //delay(100);
+         distance = getDistance(mCurrentWayPoint, flat, flon);
+         lcd.print(formatDistance(distance));
+         //Check if distance is less then 2 meters
+         if(distance < 2){
+           //Advance to next way point
+           mCurrentWayPoint++;
+         } else {
+           //Navigate to the way point
+           if(compassHeading == heading){
+              forward(); 
+           } else if (compassHeading > heading) {
+              left();
+           } else {
+              right(); 
+           }
+         }
        break;
        case CMD_ADD_WAY_POINT:
          mLat[mCurrentWayPoint] = flat;
@@ -261,6 +278,18 @@ void printFloat(double f, int digits = 2);
     }
     
   }
+ 
+ void forward(){
+ 
+ }
+ 
+ void left(){
+   
+ }
+ 
+ void right(){
+   
+ }
  
  float formatDistance(int meters){
   return meters / (float) 1000;
