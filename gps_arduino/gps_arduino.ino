@@ -255,6 +255,7 @@ SabertoothSimplified ST(SWSerial); // Use SWSerial as the serial port.
          distance = getDistance(mCurrentWayPoint, flat, flon);
          
          lcd.print(" ");
+         lcd.print(mCurrentWayPoint);
          //Check if distance is less then 2 meters
          if(distance < 2){
            //Advance to next way point
