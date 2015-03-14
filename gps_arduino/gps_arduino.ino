@@ -5,6 +5,7 @@
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_HMC5883_U.h>
+#include <SabertoothSimplified.h>
 
 // tiny gps library code
 float flat, flon;
@@ -61,8 +62,17 @@ void gpsdump(TinyGPS &gps);
 bool feedgps();
 void printFloat(double f, int digits = 2);
 
+//Sabertooth motor driver
+#define LEFT 2
+#define RIGHT 1
+#define MOTOR_PIN 3
+SoftwareSerial SWSerial(NOT_A_PIN, MOTOR_PIN); // RX on no pin (unused), TX on MOTOR_PIN (to S1).
+SabertoothSimplified ST(SWSerial); // Use SWSerial as the serial port.
 
   void setup(){
+    //Used for Motor Controler
+    SWSerial.begin(9600);
+    
     lcd.begin(16, 2);              // start the library
     lcd.setCursor(0,0);
     lcd.print("Starting..."); // print a simple message
@@ -240,28 +250,35 @@ void printFloat(double f, int digits = 2);
          lcd.setCursor(0,0);
          lcd.print("M:");
          lcd.print(compassHeading);
-         lcd.setCursor(0,1);
-         lcd.print("G:");
-         heading = getHeading(mCurrentWayPoint, flat, flon);
-         lcd.print(heading);
-         lcd.print(" ");
-         lcd.print("D:");
+         
+         heading = getHeading(mCurrentWayPoint, flat, flon);  
          distance = getDistance(mCurrentWayPoint, flat, flon);
-         lcd.print(formatDistance(distance));
+         
+         lcd.print(" ");
          //Check if distance is less then 2 meters
          if(distance < 2){
            //Advance to next way point
            mCurrentWayPoint++;
+           lcd.print("X");
          } else {
            //Navigate to the way point
-           if(compassHeading == heading){
-              forward(); 
+           if(abs(compassHeading - heading) < 5){
+             lcd.print("F");
+             forward(); 
            } else if (compassHeading > heading) {
-              left();
+             lcd.print("L"); 
+             left();
            } else {
-              right(); 
+             lcd.print("R");
+             right(); 
            }
          }
+         lcd.setCursor(0,1);
+         lcd.print("G:");
+         lcd.print(heading);
+         lcd.print(" ");
+         lcd.print("D:");
+         lcd.print(formatDistance(distance));
        break;
        case CMD_ADD_WAY_POINT:
          mLat[mCurrentWayPoint] = flat;
@@ -280,15 +297,18 @@ void printFloat(double f, int digits = 2);
   }
  
  void forward(){
- 
+   ST.motor(RIGHT, 100);
+   ST.motor(LEFT, 100);
  }
  
  void left(){
-   
+   ST.motor(RIGHT, 45);
+   ST.motor(LEFT, 25);
  }
  
  void right(){
-   
+   ST.motor(RIGHT, 25);
+   ST.motor(LEFT, 45);
  }
  
  float formatDistance(int meters){
