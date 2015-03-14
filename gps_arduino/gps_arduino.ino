@@ -4,7 +4,9 @@
 #include <TinyGPS.h>  
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
-#include <Adafruit_HMC5883_U.h>
+#include <Adafruit_LSM303_U.h>
+#include <Adafruit_L3GD20_U.h>
+#include <Adafruit_9DOF.h>
 #include <SabertoothSimplified.h>
 
 // tiny gps library code
@@ -14,7 +16,14 @@ TinyGPS gps;
 SoftwareSerial mySerial(2, 255);    //used for gps rx and tx pins in use
 
 //Compass Stuff
-Adafruit_HMC5883_Unified mag = Adafruit_HMC5883_Unified(12345);
+/* Assign a unique ID to the sensors */
+Adafruit_9DOF                dof   = Adafruit_9DOF();
+Adafruit_LSM303_Accel_Unified accel = Adafruit_LSM303_Accel_Unified(30301);
+Adafruit_LSM303_Mag_Unified   mag   = Adafruit_LSM303_Mag_Unified(30302);
+
+/* Update this with the correct SLP for accurate altitude measurements */
+float seaLevelPressure = SENSORS_PRESSURE_SEALEVELHPA;
+
 float compassHeading;
 
 //LCD stuff
@@ -85,9 +94,14 @@ SabertoothSimplified ST(SWSerial); // Use SWSerial as the serial port.
     mySerial.begin(9600);
 
     /* Initialise the compass */
+    if(!accel.begin()){
+    /* There was a problem detecting the LSM303 ... check your connections */
+    lcd.println(F("Ooops, no LSM303 detected ... Check your wiring!"));
+    while(1);
+   }
     if(!mag.begin()){
       /* There was a problem detecting the HMC5883 ... check your connections */
-      Serial.println("Ooops, no HMC5883 detected ... Check your wiring!");
+      lcd.println("Ooops, no HMC5883 detected ... Check your wiring!");
       while(1);
     }
     //Setup test waypoint
@@ -116,7 +130,13 @@ SabertoothSimplified ST(SWSerial); // Use SWSerial as the serial port.
   void updateHeading(){
     /* Get a new sensor event */ 
     sensors_event_t event; 
+    sensors_event_t accel_event;
+    accel.getEvent(&accel_event);
     mag.getEvent(&event);
+    
+//    if(!dof.magTiltCompensation(SENSOR_AXIS_Z, &event, &accel_event)){
+//      return;
+//    }
     
     // Hold the module so that Z is pointing 'up' and you can measure the heading with x&y
     // Calculate heading when the magnetometer is level, then correct for signs of axis.
