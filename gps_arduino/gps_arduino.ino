@@ -1,13 +1,39 @@
-//compiled on 1.5.1r2
+//josh--compiled on 1.5.1r2
+//Atom --compiled on 1.0.4 for uno "20x4 LCD tied to SDA A4, SCL A5" displaying data   
+// pins used 
+//lcd  8, 9, 4, 5, 6, 7 A0
+//gps 3,4
+//mag a4 a5
+
 #include <LiquidCrystal.h>
 #include <SoftwareSerial.h>
 #include <TinyGPS.h>  
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_LSM303_U.h>
-#include <Adafruit_BMP085_U.h>
-#include <Adafruit_10DOF.h>
+#include <Adafruit_L3GD20_U.h>
+#include <Adafruit_9DOF.h>
 #include <SabertoothSimplified.h>
+
+//Optional second 4 line 20 char LCD for displaying data 
+
+#include <LiquidCrystal_I2C.h>
+
+#define I2C_ADDR 0x27  // Define I2C Address where the PCF8574A is
+                          // Address can be changed by soldering A0, A1, or A2
+                          // Default is 0x27
+
+// map the pin configuration of LCD backpack for the LiquidCristal class
+#define BACKLIGHT_PIN 3
+#define En_pin  2
+#define Rw_pin  1
+#define Rs_pin  0
+#define D4_pin  4
+#define D5_pin  5
+#define D6_pin  6
+#define D7_pin  7
+
+LiquidCrystal_I2C lcd2(I2C_ADDR,En_pin,Rw_pin,Rs_pin,D4_pin,D5_pin,D6_pin,D7_pin,BACKLIGHT_PIN, POSITIVE);
 
 // tiny gps library code
 float flat, flon;
@@ -17,17 +43,16 @@ SoftwareSerial mySerial(2, 255);    //used for gps rx and tx pins in use
 
 //Compass Stuff
 /* Assign a unique ID to the sensors */
-Adafruit_10DOF                dof   = Adafruit_10DOF();
+Adafruit_9DOF                dof   = Adafruit_9DOF();
 Adafruit_LSM303_Accel_Unified accel = Adafruit_LSM303_Accel_Unified(30301);
 Adafruit_LSM303_Mag_Unified   mag   = Adafruit_LSM303_Mag_Unified(30302);
-Adafruit_BMP085_Unified       bmp   = Adafruit_BMP085_Unified(18001);
 
 /* Update this with the correct SLP for accurate altitude measurements */
 float seaLevelPressure = SENSORS_PRESSURE_SEALEVELHPA;
 
 float compassHeading;
 
-//LCD stuff
+// 2x16 LCD stuff
 LiquidCrystal lcd(8, 9, 4, 5, 6, 7); 
 // define some values used by the panel and buttons
 int lcd_key     = 0;
@@ -41,20 +66,22 @@ int adc_key_in  = 0;
 
 //Menu System
 #define CMD_SHOW_POSITION -2
-#define CMD_NAVIGATE -1
 #define CMD_SHOW_WAY_POINT 0
 #define CMD_ADD_WAY_POINT 1
 #define CMD_NEXT_WAY_POINT 2
 #define CMD_LAST_WAY_POINT 3
+#define CMD_NAVIGATE 4
+
 int mMenuPosition = CMD_SHOW_WAY_POINT;
-#define MENU_LENGTH 4
+#define MENU_LENGTH 5
 char* mMenu[]={
-"Show Way Point",
-"Add Way Point",
-"Next Way Point",
-"Last Way Point",
-"Delete Way Point",
-"Clear Way Points"};
+"  Show",
+"  Add",
+"  Next",
+"Previous",
+"Navigate",
+" Delete",
+"  Clear"};
 #define MODE_POSITION 0
 #define MODE_MENU 1
 #define MODE_NAVIGATE 2
@@ -83,6 +110,7 @@ SabertoothSimplified ST(SWSerial); // Use SWSerial as the serial port.
     //Used for Motor Controler
     SWSerial.begin(9600);
     
+    
     lcd.begin(16, 2);              // start the library
     lcd.setCursor(0,0);
     lcd.print("Starting..."); // print a simple message
@@ -110,7 +138,8 @@ SabertoothSimplified ST(SWSerial); // Use SWSerial as the serial port.
     mLon[0] = -90.270577;
     
     //Show initial menu
-    displayMenu();
+   // displayMenu();
+    bootScreen();
   }
 
   void loop(){ 
@@ -123,6 +152,7 @@ SabertoothSimplified ST(SWSerial); // Use SWSerial as the serial port.
     }
     updateHeading();
     updateDisplay(newData);
+
   }
 
   /**
@@ -134,9 +164,8 @@ SabertoothSimplified ST(SWSerial); // Use SWSerial as the serial port.
     sensors_event_t accel_event;
     accel.getEvent(&accel_event);
     mag.getEvent(&event);
-    sensors_vec_t   orientation;
-    if(dof.magTiltCompensation(SENSOR_AXIS_Z, &event, &accel_event) && dof.magGetOrientation(SENSOR_AXIS_Z, &event, &orientation)){
-      compassHeading = orientation.heading;
+    
+    if(!dof.magTiltCompensation(SENSOR_AXIS_Z, &event, &accel_event)){
       return;
     }
     
@@ -209,6 +238,7 @@ SabertoothSimplified ST(SWSerial); // Use SWSerial as the serial port.
        case MODE_MENU:
         if(isPress){
           displayMenu();
+          display2Menu();
         }
        break;
        case MODE_NAVIGATE:
@@ -228,33 +258,90 @@ SabertoothSimplified ST(SWSerial); // Use SWSerial as the serial port.
       delay(250);
     }
   }
+  void bootScreen(){
+      lcd.clear();
+      lcd.setCursor ( 0, 0 );            // go to the top left corner
+      lcd.print("  Navigation "); // write this string on the top row
+      lcd.setCursor ( 0, 1 );            // go to the 2nd row
+      lcd.print(" Systems Ready");
+     
+      lcd2.begin(20,4);        // 20 columns by 4 rows on display
+      lcd2.clear();
+      lcd2.setBacklight(HIGH); // Turn on backlight, LOW for off
+      lcd2.setCursor(0,0);
+      lcd2.print("P-ath");
+      lcd2.setCursor(0,1);
+      lcd2.print(" I-ntelligence  ! !");
+      lcd2.setCursor(0,2);
+      lcd2.print("  K-ontrol      o o");
+      lcd2.setCursor(0,3);
+      lcd2.print("   A-ssembly    ---");
+         //delay 1000);
+
+      }
+
 
   void displayMenu(){
       lcd.clear();
-      lcd.setCursor(0,0);
-      lcd.print(mCurrentWayPoint);
-      lcd.print(">");
-      lcd.print(mMenu[mMenuPosition]);
-      if(mMenuPosition < MENU_LENGTH){
-        lcd.setCursor(0,1);
-        lcd.print(mMenu[mMenuPosition + 1]);
-      }
-  }
+      lcd.setCursor ( 0, 0 );            // go to the top left corner
+      lcd.print("   Navigation "); // write this string on the top row
+      lcd.setCursor ( 0, 1 );            // go to the 2nd row
+      lcd.print("      Menu ");
 
+      }
+  
+  void display2Menu(){
+      lcd2.clear();
+      lcd2.setCursor(0,0);
+      lcd2.print("Current Waypoint:");
+      lcd2.print(mCurrentWayPoint);
+      
+      lcd2.setCursor(0,1);
+      lcd2.print("   --------------");
+      lcd2.setCursor(3,2);
+      lcd2.print("I");
+      lcd2.setCursor(6,2);
+      lcd2.print(mMenu[mMenuPosition]);
+      lcd2.setCursor(16,2);
+      lcd2.print("I");
+      lcd2.setCursor(0,3);
+      lcd2.print("   --------------");
+      /*lcd2.setCursor(0,1);
+      lcd2.print(">");
+      lcd2.print(mMenu[mMenuPosition]);
+      if(mMenuPosition < MENU_LENGTH){
+        lcd2.setCursor(1,2);
+        lcd2.print(mMenu[mMenuPosition + 1]);
+        }
+*/  
+  }
   void executeCommand(int cmd){
     float heading;
     int distance;
     switch(cmd){
        case CMD_SHOW_POSITION:
-         //Display current position
+         //Display 1 current position menu
          lcd.clear();
          lcd.setCursor(0,0);
-         lcd.print("LAT: ");
-         lcd.print(flat, 6);
+         lcd.print("    Current");
          lcd.setCursor(0,1);
-         lcd.print("LON: ");
-         lcd.print(flon, 6);
-         //delay(1000);
+         lcd.print("    Position");
+         //Display 2 current position data
+         lcd2.clear();
+         lcd2.setCursor(0,0);
+         lcd2.print("LAT: ");
+         lcd2.print(flat, 8);
+         lcd2.setCursor(0,1);
+         lcd2.print("LON: ");
+         lcd2.print(flon, 8);
+         lcd2.setCursor(0,2);
+         lcd2.print("MAG: ");
+         lcd2.print(compassHeading);
+         lcd2.setCursor(0,3);
+         lcd2.print("SAT: ");
+         lcd2.print(gps.satellites() == TinyGPS::GPS_INVALID_SATELLITES ? DEC: gps.satellites());
+         //delay 1000);
+        
        break;
        case CMD_SHOW_WAY_POINT:
          //Display current position
@@ -447,4 +534,5 @@ float calc_dist(float flat1, float flon1, float flat2, float flon2)
    if (adc_key_in < 790)  return btnSELECT;  
    return btnNONE;  // when all others fail, return this...
   }
+
 
