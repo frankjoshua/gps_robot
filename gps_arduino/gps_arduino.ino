@@ -5,8 +5,8 @@
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_LSM303_U.h>
-#include <Adafruit_L3GD20_U.h>
-#include <Adafruit_9DOF.h>
+#include <Adafruit_BMP085_U.h>
+#include <Adafruit_10DOF.h>
 #include <SabertoothSimplified.h>
 
 // tiny gps library code
@@ -17,9 +17,10 @@ SoftwareSerial mySerial(2, 255);    //used for gps rx and tx pins in use
 
 //Compass Stuff
 /* Assign a unique ID to the sensors */
-Adafruit_9DOF                dof   = Adafruit_9DOF();
+Adafruit_10DOF                dof   = Adafruit_10DOF();
 Adafruit_LSM303_Accel_Unified accel = Adafruit_LSM303_Accel_Unified(30301);
 Adafruit_LSM303_Mag_Unified   mag   = Adafruit_LSM303_Mag_Unified(30302);
+Adafruit_BMP085_Unified       bmp   = Adafruit_BMP085_Unified(18001);
 
 /* Update this with the correct SLP for accurate altitude measurements */
 float seaLevelPressure = SENSORS_PRESSURE_SEALEVELHPA;
@@ -133,10 +134,11 @@ SabertoothSimplified ST(SWSerial); // Use SWSerial as the serial port.
     sensors_event_t accel_event;
     accel.getEvent(&accel_event);
     mag.getEvent(&event);
-    
-//    if(!dof.magTiltCompensation(SENSOR_AXIS_Z, &event, &accel_event)){
-//      return;
-//    }
+    sensors_vec_t   orientation;
+    if(dof.magTiltCompensation(SENSOR_AXIS_Z, &event, &accel_event) && dof.magGetOrientation(SENSOR_AXIS_Z, &event, &orientation)){
+      compassHeading = orientation.heading;
+      return;
+    }
     
     // Hold the module so that Z is pointing 'up' and you can measure the heading with x&y
     // Calculate heading when the magnetometer is level, then correct for signs of axis.
