@@ -14,10 +14,31 @@
 #include <Adafruit_L3GD20_U.h>
 #include <Adafruit_9DOF.h>
 #include <SabertoothSimplified.h>
+#include <EasyTransfer.h>
 
 //Optional second 4 line 20 char LCD for displaying data 
 
 #include <LiquidCrystal_I2C.h>
+
+//START Easy Transfer
+EasyTransfer etData;
+struct COM_DATA_STRUCTURE{
+  //put your variable definitions here for the data you want to receive
+  //THIS MUST BE EXACTLY THE SAME ON THE OTHER ARDUINO
+  int tar;
+  int cmd;
+  int val;
+  int dur;
+};
+
+//give a name to the group of data
+COM_DATA_STRUCTURE dataStruct;
+//END Easy Transfer
+
+//Motor speed -127 to 127
+#define SPEED 127
+#define TURN_SPEED 70
+
 
 #define I2C_ADDR 0x27  // Define I2C Address where the PCF8574A is
                           // Address can be changed by soldering A0, A1, or A2
@@ -50,7 +71,10 @@ Adafruit_LSM303_Mag_Unified   mag   = Adafruit_LSM303_Mag_Unified(30302);
 /* Update this with the correct SLP for accurate altitude measurements */
 float seaLevelPressure = SENSORS_PRESSURE_SEALEVELHPA;
 
+//Compass stuff
 float compassHeading;
+int mHeadingOffset = 0;
+#define HEADING_ADJUST_PIN A2
 
 // 2x16 LCD stuff
 LiquidCrystal lcd(8, 9, 4, 5, 6, 7); 
@@ -115,8 +139,9 @@ SabertoothSimplified ST(SWSerial); // Use SWSerial as the serial port.
     lcd.setCursor(0,0);
     lcd.print("Starting..."); // print a simple message
  
-    //Set up diagnostic output
+    //Set up diagnostic outputs
     Serial.begin(9600);
+    etData.begin(details(dataStruct), &Serial);
     Serial.println("Starting ...");
     
     //Set gps
@@ -153,6 +178,10 @@ SabertoothSimplified ST(SWSerial); // Use SWSerial as the serial port.
     updateHeading();
     updateDisplay(newData);
 
+    //Update heading offset
+    mHeadingOffset = analogRead(HEADING_ADJUST_PIN);            // reads the value of the potentiometer (value between 0 and 1023) 
+    mHeadingOffset = map(mHeadingOffset, 0, 1023, 90, -90);     // scale it to use it with the heading (value between 0 and 180) 
+  
   }
 
   /**
@@ -190,6 +219,11 @@ SabertoothSimplified ST(SWSerial); // Use SWSerial as the serial port.
      
     // Convert radians to degrees for readability.
     compassHeading = heading * 180/M_PI; 
+    //Adjust heading
+    compassHeading += mHeadingOffset;
+    if(compassHeading >= 360){
+      compassHeading -= 360;
+    }
   }
   
   void updateDisplay(bool newData){
@@ -407,18 +441,39 @@ SabertoothSimplified ST(SWSerial); // Use SWSerial as the serial port.
   }
  
  void forward(){
-   ST.motor(RIGHT, 100);
-   ST.motor(LEFT, 100);
+   //Send data
+    dataStruct.tar = 20;
+    dataStruct.val = SPEED;
+    etData.sendData();
+    dataStruct.tar = 21;
+    dataStruct.val = SPEED;
+    etData.sendData();
+   ST.motor(RIGHT, SPEED);
+   ST.motor(LEFT, SPEED);
  }
  
  void left(){
-   ST.motor(RIGHT, 45);
-   ST.motor(LEFT, 25);
+      //Send data
+    dataStruct.tar = 20;
+    dataStruct.val = SPEED;
+    etData.sendData();
+    dataStruct.tar = 21;
+    dataStruct.val = TURN_SPEED;
+    etData.sendData();
+   ST.motor(RIGHT, SPEED);
+   ST.motor(LEFT, TURN_SPEED);
  }
  
  void right(){
-   ST.motor(RIGHT, 25);
-   ST.motor(LEFT, 45);
+      //Send data
+    dataStruct.tar = 20;
+    dataStruct.val = TURN_SPEED;
+    etData.sendData();
+    dataStruct.tar = 21;
+    dataStruct.val = SPEED;
+    etData.sendData();
+   ST.motor(RIGHT, TURN_SPEED);
+   ST.motor(LEFT, SPEED);
  }
  
  float formatDistance(int meters){
@@ -512,6 +567,8 @@ float calc_dist(float flat1, float flon1, float flat2, float flon2)
     double arg2 = cos(currentLat)*sin(waypointLat)-sin(currentLat)*cos(waypointLat)*cos(waypointLon-currentLon);
     float heading = atan2(arg1, arg2);//,2*3.1415926535;
     heading = heading*180/3.1415926535;  // convert from radians to degrees
+    //Way points are backwards flip them 180
+    heading += 180;
     //if the heading is negative then add 360 to make it positive
     if(heading < 0){
       heading+=360;   
