@@ -180,7 +180,7 @@ SabertoothSimplified ST(SWSerial); // Use SWSerial as the serial port.
 
     //Update heading offset
     mHeadingOffset = analogRead(HEADING_ADJUST_PIN);            // reads the value of the potentiometer (value between 0 and 1023) 
-    mHeadingOffset = map(mHeadingOffset, 0, 1023, 90, -90);     // scale it to use it with the heading (value between 0 and 180) 
+    mHeadingOffset = map(mHeadingOffset, 0, 1023, 180, -180);     // scale it to use it with the heading (value between 0 and 180) 
   
   }
 
@@ -223,6 +223,8 @@ SabertoothSimplified ST(SWSerial); // Use SWSerial as the serial port.
     compassHeading += mHeadingOffset;
     if(compassHeading >= 360){
       compassHeading -= 360;
+    } else if (compassHeading < 0){
+      compassHeading += 360;
     }
   }
   
