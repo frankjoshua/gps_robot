@@ -3,7 +3,8 @@
 // pins used 
 //lcd  8, 9, 4, 5, 6, 7 A0
 //gps 3,4
-//mag a4 a5
+//mag A4 A5
+//Heading Adjust A2
 
 #include <LiquidCrystal.h>
 #include <SoftwareSerial.h>
@@ -111,6 +112,9 @@ char* mMenu[]={
 #define MODE_NAVIGATE 2
 #define NUMBER_OF_MODES 3
 int mMode = MODE_MENU;
+/* Time in millis that the naivagtion should update new data or not */
+#define REFRESH_RATE 1000
+unsigned long lastUpdate = 0;
 
 //Store Waypoints
 #define MAX_WAYPOINTS 20
@@ -176,6 +180,12 @@ SabertoothSimplified ST(SWSerial); // Use SWSerial as the serial port.
       newData = true;
     }
     updateHeading();
+    //Force refresh after set amount of time
+    unsigned long currentMillis = millis();
+    if(currentMillis - lastUpdate > REFRESH_RATE){
+       lastUpdate = currentMillis;
+       newData = true;
+    } 
     updateDisplay(newData);
 
     //Update heading offset
