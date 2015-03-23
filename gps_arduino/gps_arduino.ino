@@ -16,6 +16,7 @@
 #include <Adafruit_9DOF.h>
 #include <SabertoothSimplified.h>
 #include <EasyTransfer.h>
+#include <Kalman.h>
 
 //Optional second 4 line 20 char LCD for displaying data 
 
@@ -121,6 +122,9 @@ unsigned long lastUpdate = 0;
 float mLat[MAX_WAYPOINTS]; //38.628967, -90.270577 Science Center
 float mLon[MAX_WAYPOINTS];
 int mCurrentWayPoint = 0;
+
+//Kalman filter for smoothing compass value
+Kalman compassFilter(0.125,32,1023,0); //suggested initial values for high noise filtering
 
 //Method definitions
 void gpsdump(TinyGPS &gps);
@@ -236,6 +240,9 @@ SabertoothSimplified ST(SWSerial); // Use SWSerial as the serial port.
     } else if (compassHeading < 0){
       compassHeading += 360;
     }
+    
+    //Filter compass value to smooth out values
+    compassHeading = compassFilter.getFilteredValue(compassHeading);
   }
   
   void updateDisplay(bool newData){
