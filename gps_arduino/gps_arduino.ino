@@ -129,7 +129,6 @@ Kalman compassFilter(0.125,32,1023,0); //suggested initial values for high noise
 //Method definitions
 void gpsdump(TinyGPS &gps);
 bool feedgps();
-void printFloat(double f, int digits = 2);
 
 //Sabertooth motor driver
 #define LEFT 2
@@ -166,9 +165,21 @@ SabertoothSimplified ST(SWSerial); // Use SWSerial as the serial port.
       lcd.println("Ooops, no HMC5883 detected ... Check your wiring!");
       while(1);
     }
-    //Setup test waypoint
-    mLat[0] = 38.628967;
-    mLon[0] = -90.270577;
+    //Setup test waypoint. Start 38.631514, -90.271908
+    mLat[0] = 38.631158;
+    mLon[0] = -90.272172;
+    mLat[1] = 38.631392;
+    mLon[1] = -90.272881;
+    mLat[2] = 38.632092;
+    mLon[2] = -90.272706;
+    mLat[3] = 38.632581;
+    mLon[3] = -90.272767;
+    mLat[4] = 38.632583;
+    mLon[4] = -90.272778;
+    mLat[5] = 38.632019;
+    mLon[5] = -90.272031;
+    mLat[6] = 38.631514;
+    mLon[6] = -90.271908;
     
     //Show initial menu
    // displayMenu();
