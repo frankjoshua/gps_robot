@@ -39,8 +39,8 @@ COM_DATA_STRUCTURE dataStruct;
 //END Easy Transfer
 
 //Motor speed -127 to 127
-#define SPEED 127
-#define TURN_SPEED 70
+#define SPEED 80
+#define TURN_SPEED 55
 
 
 #define I2C_ADDR 0x27  // Define I2C Address where the PCF8574A is
@@ -136,8 +136,8 @@ void gpsdump(TinyGPS &gps);
 bool feedgps();
 
 //Sabertooth motor driver
-#define LEFT 2
-#define RIGHT 1
+#define LEFT 1
+#define RIGHT 2
 #define MOTOR_PIN 3
 SoftwareSerial SWSerial(NOT_A_PIN, MOTOR_PIN); // RX on no pin (unused), TX on MOTOR_PIN (to S1).
 SabertoothSimplified ST(SWSerial); // Use SWSerial as the serial port.
