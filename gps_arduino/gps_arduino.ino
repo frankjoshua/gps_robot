@@ -94,20 +94,20 @@ int adc_key_in  = 0;
 #define CMD_SHOW_POSITION -2
 #define CMD_SHOW_WAY_POINT 0
 #define CMD_ADD_WAY_POINT 1
-#define CMD_NEXT_WAY_POINT 2
-#define CMD_LAST_WAY_POINT 3
-#define CMD_NAVIGATE 4
+#define CMD_DELETE_WAY_POINT 2
+#define CMD_NEXT_WAY_POINT 3
+#define CMD_LAST_WAY_POINT 4
+#define CMD_DELETE_ALL 5
+#define CMD_NAVIGATE 6
 
 int mMenuPosition = CMD_SHOW_WAY_POINT;
-#define MENU_LENGTH 5
+#define MENU_LENGTH 4
 char* mMenu[]={
 "  Show",
 "  Add",
-"  Next",
-"Previous",
-"Navigate",
 " Delete",
-"  Clear"};
+"  Next",
+"Previous"};
 #define MODE_POSITION 0
 #define MODE_MENU 1
 #define MODE_NAVIGATE 2
@@ -182,8 +182,11 @@ SabertoothSimplified ST(SWSerial); // Use SWSerial as the serial port.
     mLon[6] = -90.271908;
     
     //Show initial menu
-   // displayMenu();
     bootScreen();
+    delay (3000);
+    displayMenu();
+    display2Menu();
+
   }
 
   void loop(){ 
@@ -348,9 +351,9 @@ SabertoothSimplified ST(SWSerial); // Use SWSerial as the serial port.
   void displayMenu(){
       lcd.clear();
       lcd.setCursor ( 0, 0 );            // go to the top left corner
-      lcd.print("   Navigation "); // write this string on the top row
+      lcd.print("<  Navigation  >"); // write this string on the top row
       lcd.setCursor ( 0, 1 );            // go to the 2nd row
-      lcd.print("      Menu ");
+      lcd.print("<     Setup    >");
 
       }
   
@@ -370,14 +373,6 @@ SabertoothSimplified ST(SWSerial); // Use SWSerial as the serial port.
       lcd2.print("I");
       lcd2.setCursor(0,3);
       lcd2.print("   --------------");
-      /*lcd2.setCursor(0,1);
-      lcd2.print(">");
-      lcd2.print(mMenu[mMenuPosition]);
-      if(mMenuPosition < MENU_LENGTH){
-        lcd2.setCursor(1,2);
-        lcd2.print(mMenu[mMenuPosition + 1]);
-        }
-*/  
   }
   void executeCommand(int cmd){
     float heading;
@@ -387,9 +382,10 @@ SabertoothSimplified ST(SWSerial); // Use SWSerial as the serial port.
          //Display 1 current position menu
          lcd.clear();
          lcd.setCursor(0,0);
-         lcd.print("    Current");
+         lcd.print("    Current    >");
          lcd.setCursor(0,1);
-         lcd.print("    Position");
+         lcd.print("    Position   >");
+         
          //Display 2 current position data
          lcd2.clear();
          lcd2.setCursor(0,0);
@@ -409,54 +405,102 @@ SabertoothSimplified ST(SWSerial); // Use SWSerial as the serial port.
        break;
        case CMD_SHOW_WAY_POINT:
          //Display current position
+         //Display current position
          lcd.clear();
          lcd.setCursor(0,0);
-         lcd.print("LAT: ");
-         lcd.print(mLat[mCurrentWayPoint], 6);
+         lcd.print("    Current");
          lcd.setCursor(0,1);
-         lcd.print("LON: ");
-         lcd.print(mLon[mCurrentWayPoint], 6);
-         delay(2000);
+         lcd.print("    Waypoint");
+         
+         lcd2.clear();
+         lcd2.setCursor(0,0);
+         lcd2.print("--- Waypoint :");
+         lcd2.print(mCurrentWayPoint);
+         lcd2.setCursor(17,0);
+         lcd2.print("---");
+         lcd2.setCursor(0,1);
+         lcd2.print(" LAT: ");
+         lcd2.print(mLat[mCurrentWayPoint], 8);
+         lcd2.setCursor(0,2);
+         lcd2.print(" LON: ");
+         lcd2.print(mLon[mCurrentWayPoint], 8);
+         lcd2.setCursor(0,3);
+         lcd2.print("--------------------");
+         delay(5000);
        break;
        case CMD_NAVIGATE:
          lcd.clear();
          lcd.setCursor(0,0);
-         lcd.print("M:");
-         lcd.print(compassHeading);
+         lcd.print("<   Navigating ");
+         lcd.setCursor(0,1);
+         lcd.print("<   Waypoints ");
+         
+         lcd2.clear();
+         lcd2.setCursor(0,0);
+         lcd2.print("--- Waypoint: ");
+         lcd2.print(mCurrentWayPoint);
+         lcd2.setCursor(16,0);
+         lcd2.print(" ---");
+         lcd2.setCursor(0,1);
+         lcd2.print("MAG:");
+         lcd2.print(compassHeading);
          
          heading = getHeading(mCurrentWayPoint, flat, flon);  
          distance = getDistance(mCurrentWayPoint, flat, flon);
          
-         lcd.print(" ");
-         lcd.print(mCurrentWayPoint);
          //Check if distance is less then 2 meters
          if(distance < 2){
            //Advance to next way point
            mCurrentWayPoint++;
-           lcd.print("X");
+           lcd2.setCursor(0,3);
+           lcd2.print("**Waypoint Reached**");
          } else {
            //Navigate to the way point
            if(abs(compassHeading - heading) < 5){
-             lcd.print("F");
+             lcd2.setCursor(0,3);
+             lcd2.print("  Command: FORWARD");
              forward(); 
            } else if (compassHeading > heading) {
-             lcd.print("L"); 
+             lcd2.setCursor(0,3);
+             lcd2.print("  Command: LEFT"); 
              left();
            } else {
-             lcd.print("R");
+             lcd2.setCursor(0,3);
+             lcd2.print("  Command: RIGHT");
              right(); 
            }
          }
-         lcd.setCursor(0,1);
-         lcd.print("G:");
-         lcd.print(heading);
-         lcd.print(" ");
-         lcd.print("D:");
-         lcd.print(formatDistance(distance));
+         lcd2.setCursor(11,1);
+         lcd2.print("G:");
+         lcd2.print(heading);
+         lcd2.setCursor(0,2);
+         lcd2.print("Distance: ");
+         lcd2.print(formatDistance(distance));
        break;
        case CMD_ADD_WAY_POINT:
+         lcd.clear();
+         lcd.setCursor(0,0);
+         lcd.print("     Adding");
+         lcd.setCursor(0,1);
+         lcd.print("    Waypoint");
+         lcd2.clear();
+         lcd2.setCursor(0,0);
+         lcd2.print("------ Saving ------");
+         lcd2.setCursor(0,1);
+         lcd2.print(" LAT: ");
+         lcd2.print(flat, 8);
+         lcd2.setCursor(0,2);
+         lcd2.print(" LON: ");
+         lcd2.print(flon, 8);
+         lcd2.setCursor(0,3);
+         lcd2.print("-- To Waypoint :");
+         lcd2.print(mCurrentWayPoint);
+         lcd2.setCursor(18,3);
+         lcd2.print("--");
+
          mLat[mCurrentWayPoint] = flat;
          mLon[mCurrentWayPoint] = flon;
+         delay(5000);
        break;
        case CMD_NEXT_WAY_POINT:
          if(mCurrentWayPoint < MAX_WAYPOINTS)
@@ -466,6 +510,36 @@ SabertoothSimplified ST(SWSerial); // Use SWSerial as the serial port.
          if(mCurrentWayPoint > 0)
            mCurrentWayPoint--;
        break;
+              case CMD_DELETE_WAY_POINT:
+         lcd.clear();
+         lcd.setCursor(0,0);
+         lcd.print("    Deleting ");
+                  lcd.setCursor(0,1);
+         lcd.print("    Waypoint ");
+
+         lcd2.clear();
+         lcd2.setCursor(0,0);
+         lcd2.print("----- Deleting -----");
+         lcd2.setCursor(0,1);
+         lcd2.print(" LAT: ");
+         lcd2.print(mLat[mCurrentWayPoint], 8);
+         lcd2.setCursor(0,2);
+         lcd2.print(" LON: ");
+         lcd2.print(mLon[mCurrentWayPoint], 8);
+         lcd2.setCursor(0,3);
+         lcd2.print("--- Waypoint :");
+         lcd2.print(mCurrentWayPoint);
+         lcd2.setCursor(17,3);
+         lcd2.print("---");
+         mLat[mCurrentWayPoint] = 0.0;
+         mLon[mCurrentWayPoint] = 0.0;
+         delay(5000);
+       break;
+       case CMD_DELETE_ALL:
+       //ADD DELETE ALL FUNCTION HERE
+         //mLat[mCurrentWayPoint] = clearlat;
+         //mLon[mCurrentWayPoint] = clearlon;
+       break;  
     }
     
   }
@@ -621,5 +695,6 @@ float calc_dist(float flat1, float flon1, float flat2, float flon2)
    if (adc_key_in < 790)  return btnSELECT;  
    return btnNONE;  // when all others fail, return this...
   }
+
 
 
