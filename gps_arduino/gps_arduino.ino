@@ -5,6 +5,7 @@
 //gps 3,4
 //mag A4 A5
 //Heading Adjust A2
+//Speed Adjust A1
 
 #include <LiquidCrystal.h>
 #include <SoftwareSerial.h>
@@ -77,6 +78,10 @@ float seaLevelPressure = SENSORS_PRESSURE_SEALEVELHPA;
 float compassHeading;
 int mHeadingOffset = 0;
 #define HEADING_ADJUST_PIN A2
+
+//Speed control
+#define SPEED_ADJUST_PIN A1
+int mSpeedCap = 0;
 
 // 2x16 LCD stuff
 LiquidCrystal lcd(8, 9, 4, 5, 6, 7); 
@@ -210,6 +215,9 @@ SabertoothSimplified ST(SWSerial); // Use SWSerial as the serial port.
     mHeadingOffset = analogRead(HEADING_ADJUST_PIN);            // reads the value of the potentiometer (value between 0 and 1023) 
     mHeadingOffset = map(mHeadingOffset, 0, 1023, 180, -180);     // scale it to use it with the heading (value between 0 and 180) 
   
+    //Adjust speed
+    mSpeedCap = analogRead(SPEED_ADJUST_PIN);            // reads the value of the potentiometer (value between 0 and 1023) 
+    mSpeedCap = map(mSpeedCap, 0, 1023, 0, TURN_SPEED);  
   }
 
   /**
@@ -547,37 +555,37 @@ SabertoothSimplified ST(SWSerial); // Use SWSerial as the serial port.
  void forward(){
    //Send data
     dataStruct.tar = 20;
-    dataStruct.val = SPEED;
+    dataStruct.val = SPEED - mSpeedCap;
     etData.sendData();
     dataStruct.tar = 21;
-    dataStruct.val = SPEED;
+    dataStruct.val = SPEED - mSpeedCap;
     etData.sendData();
-   ST.motor(RIGHT, SPEED);
-   ST.motor(LEFT, SPEED);
+   ST.motor(RIGHT, SPEED - mSpeedCap);
+   ST.motor(LEFT, SPEED - mSpeedCap);
  }
  
  void left(){
       //Send data
     dataStruct.tar = 20;
-    dataStruct.val = SPEED;
+    dataStruct.val = SPEED - mSpeedCap;
     etData.sendData();
     dataStruct.tar = 21;
-    dataStruct.val = TURN_SPEED;
+    dataStruct.val = TURN_SPEED - mSpeedCap;
     etData.sendData();
-   ST.motor(RIGHT, SPEED);
-   ST.motor(LEFT, TURN_SPEED);
+   ST.motor(RIGHT, SPEED - mSpeedCap);
+   ST.motor(LEFT, TURN_SPEED - mSpeedCap);
  }
  
  void right(){
       //Send data
     dataStruct.tar = 20;
-    dataStruct.val = TURN_SPEED;
+    dataStruct.val = TURN_SPEED - mSpeedCap;
     etData.sendData();
     dataStruct.tar = 21;
-    dataStruct.val = SPEED;
+    dataStruct.val = SPEED - mSpeedCap;
     etData.sendData();
-   ST.motor(RIGHT, TURN_SPEED);
-   ST.motor(LEFT, SPEED);
+   ST.motor(RIGHT, TURN_SPEED - mSpeedCap);
+   ST.motor(LEFT, SPEED - mSpeedCap);
  }
  
  float formatDistance(int meters){
