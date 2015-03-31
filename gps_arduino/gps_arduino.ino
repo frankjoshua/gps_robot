@@ -405,6 +405,9 @@ SabertoothSimplified ST(SWSerial); // Use SWSerial as the serial port.
          lcd2.setCursor(0,2);
          lcd2.print("MAG: ");
          lcd2.print(compassHeading);
+         lcd2.print(" (");
+         lcd2.print(mHeadingOffset);
+         lcd2.print(")");
          lcd2.setCursor(0,3);
          lcd2.print("SAT: ");
          lcd2.print(gps.satellites() == TinyGPS::GPS_INVALID_SATELLITES ? DEC: gps.satellites());
