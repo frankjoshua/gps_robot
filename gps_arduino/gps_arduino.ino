@@ -11,10 +11,7 @@
 #include <SoftwareSerial.h>
 #include <TinyGPS.h>  
 #include <Wire.h>
-#include <Adafruit_Sensor.h>
-#include <Adafruit_LSM303_U.h>
-#include <Adafruit_L3GD20_U.h>
-#include <Adafruit_9DOF.h>
+#include <LSM303.h>
 #include <SabertoothSimplified.h>
 #include <EasyTransfer.h>
 #include <Kalman.h>
@@ -66,15 +63,7 @@ TinyGPS gps;
 SoftwareSerial mySerial(2, 255);    //used for gps rx and tx pins in use
 
 //Compass Stuff
-/* Assign a unique ID to the sensors */
-Adafruit_9DOF                dof   = Adafruit_9DOF();
-Adafruit_LSM303_Accel_Unified accel = Adafruit_LSM303_Accel_Unified(30301);
-Adafruit_LSM303_Mag_Unified   mag   = Adafruit_LSM303_Mag_Unified(30302);
-
-/* Update this with the correct SLP for accurate altitude measurements */
-float seaLevelPressure = SENSORS_PRESSURE_SEALEVELHPA;
-
-//Compass stuff
+LSM303 compass;
 float compassHeading;
 int mHeadingOffset = 0;
 #define HEADING_ADJUST_PIN A2
@@ -160,16 +149,17 @@ SabertoothSimplified ST(SWSerial); // Use SWSerial as the serial port.
     mySerial.begin(9600);
 
     /* Initialise the compass */
-    if(!accel.begin()){
-    /* There was a problem detecting the LSM303 ... check your connections */
-    lcd.println(F("Ooops, no LSM303 detected ... Check your wiring!"));
-    while(1);
-   }
-    if(!mag.begin()){
-      /* There was a problem detecting the HMC5883 ... check your connections */
-      lcd.println("Ooops, no HMC5883 detected ... Check your wiring!");
-      while(1);
-    }
+    Wire.begin();
+    compass.init();
+    compass.enableDefault();
+    /*
+    Calibration values; the default values of +/-32767 for each axis
+    lead to an assumed magnetometer bias of 0. Use the Calibrate example
+    program to determine appropriate values for your particular unit.
+    */
+    compass.m_min = (LSM303::vector<int16_t>){-767, -642, -379};
+    compass.m_max = (LSM303::vector<int16_t>){+322, +647, +616};
+  
     //Setup test waypoint. Start 38.631514, -90.271908
     mLat[0] = 38.631158;
     mLon[0] = -90.272172;
@@ -224,37 +214,10 @@ SabertoothSimplified ST(SWSerial); // Use SWSerial as the serial port.
   * Reades the heading from HMC5883 and update compassHeagin in degrees
   */
   void updateHeading(){
-    /* Get a new sensor event */ 
-    sensors_event_t event; 
-    sensors_event_t accel_event;
-    accel.getEvent(&accel_event);
-    mag.getEvent(&event);
     
-    if(!dof.magTiltCompensation(SENSOR_AXIS_Z, &event, &accel_event)){
-      return;
-    }
-    
-    // Hold the module so that Z is pointing 'up' and you can measure the heading with x&y
-    // Calculate heading when the magnetometer is level, then correct for signs of axis.
-    float heading = atan2(event.magnetic.y, event.magnetic.x);
-    
-    // Once you have your heading, you must then add your 'Declination Angle', which is the 'Error' of the magnetic field in your location.
-    // Find yours here: http://www.magnetic-declination.com/
-    // Mine is: -13* 2' W, which is ~13 Degrees, or (which we need) 0.22 radians
-    // If you cannot find your Declination, comment out these two lines, your compass will be slightly off.
-    float declinationAngle = 0.01;
-    heading += declinationAngle;
-    
-    // Correct for when signs are reversed.
-    if(heading < 0)
-      heading += 2*PI;
-      
-    // Check for wrap due to addition of declination.
-    if(heading > 2*PI)
-      heading -= 2*PI;
-     
-    // Convert radians to degrees for readability.
-    compassHeading = heading * 180/M_PI; 
+    compass.read();
+    compassHeading = compass.heading();
+
     //Adjust heading
     compassHeading += mHeadingOffset;
     if(compassHeading >= 360){
@@ -262,9 +225,8 @@ SabertoothSimplified ST(SWSerial); // Use SWSerial as the serial port.
     } else if (compassHeading < 0){
       compassHeading += 360;
     }
-    
     //Filter compass value to smooth out values
-    compassHeading = compassFilter.getFilteredValue(compassHeading);
+    //compassHeading = compassFilter.getFilteredValue(compassHeading);
   }
   
   void updateDisplay(bool newData){
