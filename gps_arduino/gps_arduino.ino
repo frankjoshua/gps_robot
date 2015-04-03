@@ -14,7 +14,7 @@
 #include <LSM303.h>
 #include <SabertoothSimplified.h>
 #include <EasyTransfer.h>
-#include <Kalman.h>
+//#include <Kalman.h>
 
 //Optional second 4 line 20 char LCD for displaying data 
 
@@ -120,7 +120,7 @@ float mLon[MAX_WAYPOINTS];
 byte mCurrentWayPoint = 0;
 
 //Kalman filter for smoothing compass value
-Kalman compassFilter(0.125,32,1023,0); //suggested initial values for high noise filtering
+//Kalman compassFilter(0.125,32,1023,0); //suggested initial values for high noise filtering
 
 //Method definitions
 void gpsdump(TinyGPS &gps);
