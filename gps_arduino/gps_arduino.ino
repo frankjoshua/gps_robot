@@ -62,6 +62,9 @@ float flat, flon;
 TinyGPS gps;
 SoftwareSerial mySerial(2, 255);    //used for gps rx and tx pins in use
 
+//Minimum distance in meters to get to the current waypoint before heading to the next
+#define MIN_DISTANCE 1
+
 //Compass Stuff
 LSM303 compass;
 float compassHeading;
@@ -344,8 +347,6 @@ SabertoothSimplified ST(SWSerial); // Use SWSerial as the serial port.
       lcd2.print(F("   --------------"));
   }
   void executeCommand(int cmd){
-    float heading;
-    int distance;
     switch(cmd){
        case CMD_SHOW_POSITION:
          //Display 1 current position menu
@@ -401,53 +402,7 @@ SabertoothSimplified ST(SWSerial); // Use SWSerial as the serial port.
          delay(5000);
        break;
        case CMD_NAVIGATE:
-         lcd.clear();
-         lcd.setCursor(0,0);
-         lcd.print(F("<   Navigating "));
-         lcd.setCursor(0,1);
-         lcd.print(F("<   Waypoints "));
-         
-         lcd2.clear();
-         lcd2.setCursor(0,0);
-         lcd2.print(F("--- Waypoint: "));
-         lcd2.print(mCurrentWayPoint);
-         lcd2.setCursor(16,0);
-         lcd2.print(F(" ---"));
-         lcd2.setCursor(0,1);
-         lcd2.print(F("MAG:"));
-         lcd2.print(compassHeading);
-         
-         heading = getHeading(mCurrentWayPoint, flat, flon);  
-         distance = getDistance(mCurrentWayPoint, flat, flon);
-         
-         //Check if distance is less then 2 meters
-         if(distance < 2){
-           //Advance to next way point
-           mCurrentWayPoint++;
-           lcd2.setCursor(0,3);
-           lcd2.print(F("**Waypoint Reached**"));
-         } else {
-           //Navigate to the way point
-           if(abs(compassHeading - heading) < 5){
-             lcd2.setCursor(0,3);
-             lcd2.print(F("  Command: FORWARD"));
-             forward(); 
-           } else if (compassHeading > heading) {
-             lcd2.setCursor(0,3);
-             lcd2.print(F("  Command: LEFT")); 
-             left();
-           } else {
-             lcd2.setCursor(0,3);
-             lcd2.print(F("  Command: RIGHT"));
-             right(); 
-           }
-         }
-         lcd2.setCursor(11,1);
-         lcd2.print(F("G:"));
-         lcd2.print(heading);
-         lcd2.setCursor(0,2);
-         lcd2.print(F("Distance: "));
-         lcd2.print(formatDistance(distance));
+         navigate();
        break;
        case CMD_ADD_WAY_POINT:
          lcd.clear();
@@ -515,6 +470,79 @@ SabertoothSimplified ST(SWSerial); // Use SWSerial as the serial port.
     }
     
   }
+ 
+ /**
+ * Main navitation code
+ */
+ void navigate(){
+
+   lcd.clear();
+   lcd.setCursor(0,0);
+   lcd.print(F("<   Navigating "));
+   lcd.setCursor(0,1);
+   lcd.print(F("<   Waypoints "));
+   
+   lcd2.clear();
+   lcd2.setCursor(0,0);
+   lcd2.print(F("--- Waypoint: "));
+   lcd2.print(mCurrentWayPoint);
+   lcd2.setCursor(16,0);
+   lcd2.print(F(" ---"));
+   lcd2.setCursor(0,1);
+   lcd2.print(F("MAG:"));
+   lcd2.print(compassHeading);
+   
+   float heading = getHeading(mCurrentWayPoint, flat, flon);  
+   int distance = getDistance(mCurrentWayPoint, flat, flon);
+   
+   //Check if distance is less then 2 meters
+   if(distance < MIN_DISTANCE){
+     lcd2.setCursor(0,3);
+     //Advance to next way point
+     mCurrentWayPoint++;
+     if(mCurrentWayPoint >= MAX_WAYPOINTS){
+       //Call stop method
+       stop();
+       lcd2.print(F("**Finish Reached**"));
+     } else {
+       lcd2.print(F("**Waypoint Reached**"));
+       delay(2000);
+     }   
+   } else {
+     //Navigate to the way point
+     if(abs(compassHeading - heading) < 5){
+       lcd2.setCursor(0,3);
+       lcd2.print(F("  Command: FORWARD"));
+       forward(); 
+     } else if (compassHeading > heading) {
+       lcd2.setCursor(0,3);
+       lcd2.print(F("  Command: LEFT")); 
+       left();
+     } else {
+       lcd2.setCursor(0,3);
+       lcd2.print(F("  Command: RIGHT"));
+       right(); 
+     }
+   }
+   lcd2.setCursor(11,1);
+   lcd2.print(F("G:"));
+   lcd2.print(heading);
+   lcd2.setCursor(0,2);
+   lcd2.print(F("Distance: "));
+   lcd2.print(formatDistance(distance));
+ }
+ 
+ void stop(){
+     //Send data
+    dataStruct.tar = 20;
+    dataStruct.val = 0;
+    etData.sendData();
+    dataStruct.tar = 21;
+    dataStruct.val = 0;
+    etData.sendData();
+   ST.motor(RIGHT, 0);
+   ST.motor(LEFT, 0);
+ }
  
  void forward(){
    //Send data
