@@ -159,8 +159,11 @@ SabertoothSimplified ST(SWSerial); // Use SWSerial as the serial port.
     lead to an assumed magnetometer bias of 0. Use the Calibrate example
     program to determine appropriate values for your particular unit.
     */
-    compass.m_min = (LSM303::vector<int16_t>){-767, -642, -379};
-    compass.m_max = (LSM303::vector<int16_t>){+322, +647, +616};
+    //min: {  -525,   -547,   -614}    max: {  +689,   +562,   +438}
+    //compass.m_min = (LSM303::vector<int16_t>){-767, -642, -379};  /Josh
+    //compass.m_max = (LSM303::vector<int16_t>){+322, +647, +616};
+    compass.m_min = (LSM303::vector<int16_t>){-525, -547, -624}; //Atom
+    compass.m_max = (LSM303::vector<int16_t>){+689, +562, +438};
   
     //Setup test waypoint. Start 38.631514, -90.271908
     mLat[0] = 38.631158;
