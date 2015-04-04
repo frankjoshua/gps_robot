@@ -37,7 +37,7 @@ COM_DATA_STRUCTURE dataStruct;
 
 //Motor speed -127 to 127
 #define SPEED 127
-#define TURN_SPEED 100
+#define TURN_SPEED 110
 
 
 #define I2C_ADDR 0x27  // Define I2C Address where the PCF8574A is
