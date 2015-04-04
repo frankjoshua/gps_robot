@@ -5,7 +5,7 @@
 //gps 3,4
 //mag A4 A5
 //Heading Adjust A2
-//Speed Adjust A1
+//Speed Adjust A2
 
 #include <LiquidCrystal.h>
 #include <SoftwareSerial.h>
@@ -36,8 +36,8 @@ COM_DATA_STRUCTURE dataStruct;
 //END Easy Transfer
 
 //Motor speed -127 to 127
-#define SPEED 80
-#define TURN_SPEED 55
+#define SPEED 127
+#define TURN_SPEED 100
 
 
 #define I2C_ADDR 0x27  // Define I2C Address where the PCF8574A is
@@ -72,7 +72,7 @@ int mHeadingOffset = 0;
 #define HEADING_ADJUST_PIN A2
 
 //Speed control
-#define SPEED_ADJUST_PIN A1
+#define SPEED_ADJUST_PIN A3
 int mSpeedCap = 0;
 
 // 2x16 LCD stuff
@@ -378,7 +378,9 @@ SabertoothSimplified ST(SWSerial); // Use SWSerial as the serial port.
          lcd2.print(F(")"));
          lcd2.setCursor(0,3);
          lcd2.print(F("SAT: "));
-         lcd2.print(gps.satellites() == TinyGPS::GPS_INVALID_SATELLITES ? DEC: gps.satellites());
+         lcd2.print(gps.satellites() == TinyGPS::GPS_INVALID_SATELLITES ? 0 : gps.satellites());
+         lcd2.print(F(" SPEED: -"));
+         lcd2.print(mSpeedCap);
          //delay 1000);
         
        break;
