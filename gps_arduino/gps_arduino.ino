@@ -63,7 +63,7 @@ TinyGPS gps;
 SoftwareSerial mySerial(2, 255);    //used for gps rx and tx pins in use
 
 //Minimum distance in meters to get to the current waypoint before heading to the next
-#define MIN_DISTANCE 1
+#define MIN_DISTANCE 2
 
 //Compass Stuff
 LSM303 compass;
@@ -122,6 +122,9 @@ byte mCurrentWayPoint = 0;
 //Kalman filter for smoothing compass value
 //Kalman compassFilter(0.125,32,1023,0); //suggested initial values for high noise filtering
 
+/* true if in a turn */
+boolean turning = false;
+ 
 //Method definitions
 void gpsdump(TinyGPS &gps);
 bool feedgps();
@@ -160,10 +163,10 @@ SabertoothSimplified ST(SWSerial); // Use SWSerial as the serial port.
     program to determine appropriate values for your particular unit.
     */
     //min: {  -525,   -547,   -614}    max: {  +689,   +562,   +438}
-    //compass.m_min = (LSM303::vector<int16_t>){-767, -642, -379};  /Josh
-    //compass.m_max = (LSM303::vector<int16_t>){+322, +647, +616};
-    compass.m_min = (LSM303::vector<int16_t>){-525, -547, -624}; //Atom
-    compass.m_max = (LSM303::vector<int16_t>){+689, +562, +438};
+    compass.m_min = (LSM303::vector<int16_t>){-767, -642, -379};  //Josh
+    compass.m_max = (LSM303::vector<int16_t>){+322, +647, +616};
+    //compass.m_min = (LSM303::vector<int16_t>){-525, -547, -624}; //Atom
+    //compass.m_max = (LSM303::vector<int16_t>){+689, +562, +438};
   
     //Setup test waypoint. Start 38.631514, -90.271908
     mLat[0] = 38.631158;
@@ -473,7 +476,7 @@ SabertoothSimplified ST(SWSerial); // Use SWSerial as the serial port.
     }
     
   }
- 
+
  /**
  * Main navitation code
  */
@@ -499,7 +502,7 @@ SabertoothSimplified ST(SWSerial); // Use SWSerial as the serial port.
    int distance = getDistance(mCurrentWayPoint, flat, flon);
    
    //Check if distance is less then 2 meters
-   if(distance < MIN_DISTANCE){
+   if(distance <= MIN_DISTANCE){
      lcd2.setCursor(0,3);
      //Advance to next way point
      mCurrentWayPoint++;
@@ -509,19 +512,32 @@ SabertoothSimplified ST(SWSerial); // Use SWSerial as the serial port.
        lcd2.print(F("**Finish Reached**"));
      } else {
        lcd2.print(F("**Waypoint Reached**"));
-       delay(2000);
+       delay(30000);
      }   
    } else {
      //Navigate to the way point
-     if(abs(compassHeading - heading) < 5){
+     //Adjust max amount to be off course
+     int highTurnRange = 30;
+     if(turning){
+       highTurnRange = 10;
+     } 
+     //Base turning range off of distance
+     int turnRange = constrain(map(distance, 0, 100, 5, 30), 5, highTurnRange);
+     if(abs(compassHeading - heading) < turnRange){
+       //Forward
+       turning = false;
        lcd2.setCursor(0,3);
        lcd2.print(F("  Command: FORWARD"));
        forward(); 
      } else if (compassHeading > heading) {
+       //Left
+       turning = true;
        lcd2.setCursor(0,3);
        lcd2.print(F("  Command: LEFT")); 
        left();
      } else {
+       //Right
+       turning = true;
        lcd2.setCursor(0,3);
        lcd2.print(F("  Command: RIGHT"));
        right(); 
@@ -584,7 +600,11 @@ SabertoothSimplified ST(SWSerial); // Use SWSerial as the serial port.
  }
  
  float formatDistance(int meters){
-  return meters / (float) 1000;
+   if(meters > 1000){
+    return meters / (float) 1000;
+   } else {
+    return meters;
+   } 
  }
  
   void gpsdump(TinyGPS &gps){
