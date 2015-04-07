@@ -1,6 +1,9 @@
 gps_robot
 =========
 
+This is the code I used for Robomo's 2015 Magellan Competition<br>
+http://robomo.com/competitions/2015-magellan-competition/<br>
+<br>
 /arduino_libs/ holds the libraries used by the sketch<br>
 /gps_arduino/ is where the main sketch is located<br>
 /gegpsd.py is the python script that reads raw gps data and turns it into a kml file for Google Earth<br>
