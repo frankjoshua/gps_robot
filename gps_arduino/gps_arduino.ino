@@ -97,13 +97,14 @@ unsigned int adc_key_in  = 0;
 #define CMD_NAVIGATE 6
 
 byte mMenuPosition = CMD_SHOW_WAY_POINT;
-#define MENU_LENGTH 4
+#define MENU_LENGTH 5
 char* mMenu[]={
 "  Show",
 "  Add",
 " Delete",
 "  Next",
-"Previous"};
+"Previous",
+"ClearAll"};
 #define MODE_POSITION 0
 #define MODE_MENU 1
 #define MODE_NAVIGATE 2
@@ -114,7 +115,7 @@ byte mMode = MODE_MENU;
 unsigned long lastUpdate = 0;
 
 //Store Waypoints
-#define MAX_WAYPOINTS 7
+#define MAX_WAYPOINTS 5
 float mLat[MAX_WAYPOINTS]; //38.628967, -90.270577 Science Center
 float mLon[MAX_WAYPOINTS];
 byte mCurrentWayPoint = 0;
@@ -163,27 +164,26 @@ SabertoothSimplified ST(SWSerial); // Use SWSerial as the serial port.
     program to determine appropriate values for your particular unit.
     */
     //min: {  -525,   -547,   -614}    max: {  +689,   +562,   +438}
-    compass.m_min = (LSM303::vector<int16_t>){-767, -642, -379};  //Josh
-    compass.m_max = (LSM303::vector<int16_t>){+322, +647, +616};
-    //compass.m_min = (LSM303::vector<int16_t>){-525, -547, -624}; //Atom
-    //compass.m_max = (LSM303::vector<int16_t>){+689, +562, +438};
+    //compass.m_min = (LSM303::vector<int16_t>){-767, -642, -379};  //Josh
+    //compass.m_max = (LSM303::vector<int16_t>){+322, +647, +616};
+    compass.m_min = (LSM303::vector<int16_t>){-525, -547, -624}; //Atom
+    compass.m_max = (LSM303::vector<int16_t>){+689, +562, +438};
   
+  
+  //walmart lstl 38.772504, -90.786702
     //Setup test waypoint. Start 38.631514, -90.271908
-    mLat[0] = 38.631158;
-    mLon[0] = -90.272172;
-    mLat[1] = 38.631392;
-    mLon[1] = -90.272881;
-    mLat[2] = 38.632092;
-    mLon[2] = -90.272706;
-    mLat[3] = 38.632581;
-    mLon[3] = -90.272767;
-    mLat[4] = 38.632583;
-    mLon[4] = -90.272778;
-    mLat[5] = 38.632019;
-    mLon[5] = -90.272031;
-    mLat[6] = 38.631514;
-    mLon[6] = -90.271908;
-    
+    mLat[0] = 38.772504;
+    mLon[0] = -90.786702
+    ;
+    mLat[1] = 0.0;
+    mLon[1] = 0.0;
+    mLat[2] = 0.0;
+    mLon[2] = 0.0;
+    mLat[3] = 0.0;
+    mLon[3] = 0.0;
+    mLat[4] = 0.0;
+    mLon[4] = 0.0;
+
     //Show initial menu
     bootScreen();
     delay (3000);
@@ -211,7 +211,8 @@ SabertoothSimplified ST(SWSerial); // Use SWSerial as the serial port.
 
     //Update heading offset
     mHeadingOffset = analogRead(HEADING_ADJUST_PIN);            // reads the value of the potentiometer (value between 0 and 1023) 
-    mHeadingOffset = map(mHeadingOffset, 0, 1023, 180, -180);     // scale it to use it with the heading (value between 0 and 180) 
+    // Rescaled headingoffset to meet full range of heading with the pot -Atom
+    mHeadingOffset = map(mHeadingOffset, 0, 873, 180, -180);     // scale it to use it with the heading (value between 0 and 180) 
   
     //Adjust speed
     mSpeedCap = analogRead(SPEED_ADJUST_PIN);            // reads the value of the potentiometer (value between 0 and 1023) 
@@ -470,10 +471,38 @@ SabertoothSimplified ST(SWSerial); // Use SWSerial as the serial port.
          mLon[mCurrentWayPoint] = 0.0;
          delay(5000);
        break;
-       case CMD_DELETE_ALL:
+              case CMD_DELETE_ALL:
        //ADD DELETE ALL FUNCTION HERE
-         //mLat[mCurrentWayPoint] = clearlat;
-         //mLon[mCurrentWayPoint] = clearlon;
+         lcd.clear();
+         lcd.setCursor(0,0);
+         lcd.print(F("  Deleting All"));
+                  lcd.setCursor(0,1);
+         lcd.print(F("    Waypoints "));
+
+         lcd2.clear();
+         lcd2.setCursor(0,0);
+         lcd2.print(F("----- Deleting -----"));
+         lcd2.setCursor(0,1);
+         lcd2.print(F("I       All        I"));
+         lcd2.setCursor(0,2);
+         lcd2.print(F("I      Saved       I"));
+         lcd2.setCursor(0,3);
+         lcd2.print(F("---- Waypoints "));
+         lcd2.setCursor(15,3);
+         lcd2.print(F("-----"));
+       
+         mLat[0] = 0.0;
+         mLon[0] = 0.0;
+         mLat[1] = 0.0;
+         mLon[1] = 0.0;
+         mLat[2] = 0.0;
+         mLon[2] = 0.0;
+         mLat[3] = 0.0;
+         mLon[3] = 0.0;
+         mLat[4] = 0.0;
+         mLon[4] = 0.0;
+         delay(5000);
+
        break;  
     }
     
@@ -514,37 +543,50 @@ SabertoothSimplified ST(SWSerial); // Use SWSerial as the serial port.
        lcd2.print(F("**Finish Reached**"));
      } else {
        lcd2.print(F("**Waypoint Reached**"));
-       delay(30000);
+       //delay(30000);
+       delay(300);
      }   
    } else {
      //Navigate to the way point
      //Adjust max amount to be off course
-     int highTurnRange = 30;
+     int highTurnRange = 50;
      if(turning){
        highTurnRange = 10;
      } 
      //Base turning range off of distance
-     int turnRange = constrain(map(distance, 0, 100, 5, 30), 5, highTurnRange);
+     int turnRange = constrain(map(distance, 0, 100, 5, 50), 5, highTurnRange);     
+     int turndirection = getdirection(compassHeading, heading);
+     
+     
      if(abs(compassHeading - heading) < turnRange){
        //Forward
        turning = false;
        lcd2.setCursor(0,3);
-       lcd2.print(F("  Command: FORWARD"));
+       lcd2.print(F("  Command: ONWARD"));
        forward(); 
-     } else if (compassHeading > heading) {
-       //Left
+     } 
+     
+     else if (turndirection == 0) { 
        turning = true;
        lcd2.setCursor(0,3);
        lcd2.print(F("  Command: LEFT")); 
        left();
-     } else {
-       //Right
+     }
+     else if (turndirection == 1) { 
        turning = true;
        lcd2.setCursor(0,3);
        lcd2.print(F("  Command: RIGHT"));
        right(); 
      }
-   }
+     else if (turndirection == 3){
+       turning = false;
+       lcd2.setCursor(0,3);
+       lcd2.print(F("  Command: BAD "));
+     }
+        
+       
+       
+       
    lcd2.setCursor(11,1);
    lcd2.print(F("G:"));
    lcd2.print(heading);
@@ -552,6 +594,79 @@ SabertoothSimplified ST(SWSerial); // Use SWSerial as the serial port.
    lcd2.print(F("Distance: "));
    lcd2.print(formatDistance(distance));
  }
+ }
+ // JAYS get direction function
+ 
+float getdirection( int compassHeading, int heading )
+  {
+
+   int distance1 = 0;
+
+   int readingval = compassHeading;  
+   int goalval = heading; 
+
+   int innerdistance =0;
+   int outerdistance = 0;
+
+   int innerturndirection = 1;
+   int outerturndirection = 0;
+
+   int godirection = 3;//outerturndirection;
+
+
+
+distance1 =  goalval - readingval;  
+
+if (distance1 < 0)
+  {
+  innerdistance = 360 + distance1; 
+  innerturndirection = 1;  
+  outerturndirection = 0;
+  }
+else // distance1 > 0
+ {
+    innerdistance  = distance1; 
+    innerturndirection = 1;  // (Right)
+    outerturndirection = 0; // (Left)
+  }
+
+
+
+outerdistance = 360 - innerdistance; 
+
+
+if (innerdistance < outerdistance)
+ {
+     godirection = innerturndirection;  //turn right
+  }
+
+
+ 
+    // already by default "godirection" = 0 which means turn left
+if (outerdistance < innerdistance)
+ {
+    godirection = outerturndirection;
+ }
+
+
+// now to send back the godirection we have chosen
+//send motor drivers the "godirection" where if "godirection" = 0 then turn Left and if "godirection" = 1 turn Right
+
+return (godirection);
+
+
+} // end of function getdirection
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
  
  void stop(){
      //Send data
@@ -573,10 +688,10 @@ SabertoothSimplified ST(SWSerial); // Use SWSerial as the serial port.
     dataStruct.tar = 21;
     dataStruct.val = SPEED - mSpeedCap;
     etData.sendData();
-   ST.motor(RIGHT, SPEED - mSpeedCap);
-   ST.motor(LEFT, SPEED - mSpeedCap);
+    ST.motor(LEFT, SPEED - mSpeedCap);
+    ST.motor(RIGHT, SPEED - mSpeedCap);
  }
- 
+
  void left(){
       //Send data
     dataStruct.tar = 20;
@@ -600,6 +715,7 @@ SabertoothSimplified ST(SWSerial); // Use SWSerial as the serial port.
    ST.motor(RIGHT, TURN_SPEED - mSpeedCap);
    ST.motor(LEFT, SPEED - mSpeedCap);
  }
+ 
  
  float formatDistance(int meters){
    if(meters > 1000){
@@ -720,6 +836,7 @@ float calc_dist(float flat1, float flon1, float flat2, float flon2)
    if (adc_key_in < 790)  return btnSELECT;  
    return btnNONE;  // when all others fail, return this...
   }
+
 
 
 
