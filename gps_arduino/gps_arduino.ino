@@ -1,3 +1,5 @@
+
+
 //josh--compiled on 1.5.1r2
 //Atom --compiled on 1.0.4 for uno "20x4 LCD tied to SDA A4, SCL A5" displaying data   
 // pins used 
@@ -11,7 +13,8 @@
 #include <SoftwareSerial.h>
 #include <TinyGPS.h>  
 #include <Wire.h>
-#include <LSM303.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BNO055.h>
 #include <SabertoothSimplified.h>
 #include <EasyTransfer.h>
 //#include <Kalman.h>
@@ -66,7 +69,7 @@ SoftwareSerial mySerial(2, 255);    //used for gps rx and tx pins in use
 #define MIN_DISTANCE 2
 
 //Compass Stuff
-LSM303 compass;
+Adafruit_BNO055 compass = Adafruit_BNO055(55);
 float compassHeading;
 int mHeadingOffset = 0;
 #define HEADING_ADJUST_PIN A2
@@ -156,8 +159,9 @@ SabertoothSimplified ST(SWSerial); // Use SWSerial as the serial port.
 
     /* Initialise the compass */
     Wire.begin();
-    compass.init();
-    compass.enableDefault();
+    if(!compass.begin()){
+        lcd.print(F("Compass bad!"));
+    }
     /*
     Calibration values; the default values of +/-32767 for each axis
     lead to an assumed magnetometer bias of 0. Use the Calibrate example
@@ -166,15 +170,14 @@ SabertoothSimplified ST(SWSerial); // Use SWSerial as the serial port.
     //min: {  -525,   -547,   -614}    max: {  +689,   +562,   +438}
     //compass.m_min = (LSM303::vector<int16_t>){-767, -642, -379};  //Josh
     //compass.m_max = (LSM303::vector<int16_t>){+322, +647, +616};
-    compass.m_min = (LSM303::vector<int16_t>){-525, -547, -624}; //Atom
-    compass.m_max = (LSM303::vector<int16_t>){+689, +562, +438};
+    //compass.m_min = (LSM303::vector<int16_t>){-525, -547, -624}; //Atom
+    //compass.m_max = (LSM303::vector<int16_t>){+689, +562, +438};
   
   
   //walmart lstl 38.772504, -90.786702
     //Setup test waypoint. Start 38.631514, -90.271908
     mLat[0] = 38.772504;
-    mLon[0] = -90.786702
-    ;
+    mLon[0] = -90.786702;
     mLat[1] = 0.0;
     mLon[1] = 0.0;
     mLat[2] = 0.0;
@@ -224,8 +227,10 @@ SabertoothSimplified ST(SWSerial); // Use SWSerial as the serial port.
   */
   void updateHeading(){
     
-    compass.read();
-    compassHeading = compass.heading();
+    /* Get a new sensor event */ 
+    sensors_event_t event;
+    compass.getEvent(&event);
+    compassHeading = event.orientation.z;
 
     //Adjust heading
     compassHeading += mHeadingOffset;
