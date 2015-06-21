@@ -17,8 +17,21 @@
 #include <Adafruit_BNO055.h>
 #include <EasyTransfer.h>
 
+/** Edit these to tune navigation */
 //Minimumn distance in meters to waypoint
 #define MIN_DISTANCE 2
+//Degrees off course before turn begins
+#define MAX_TURN_RANGE 10
+//Degrees off course before turn ends
+#define TURNING_TURN_RANGE 5
+//Turn range will never go below this value
+#define MIN_TURN_RANGE 5
+//Meters - below this distance turns will be MIN_TURN_RANGE
+#define CONSTRAIN_MIN 0
+//Meters - below this distance turns will start to become tighter moving from MAX_TURN_RANGE to MIN_TURN_RANGE
+#define CONSTRAIN_MAX 100
+//Speed of motors from -127 to 127
+#define MOTOR_SPEED 70
 
 //Turn directions
 #define TURN_LEFT 1
@@ -40,6 +53,7 @@ byte mCurrentWayPoint = 0;
 
 /* true if in a turn */
 boolean turning = false;
+byte mSpeed = MOTOR_SPEED;
 
 float mCompassHeading;
 int mHeadingOffset = 0;
@@ -284,13 +298,15 @@ void transmitHeading(){
    } else {
      //Navigate to the way point
      //Adjust max amount to be off course
-     int highTurnRange = 35;
+     int maxTurnRange = MAX_TURN_RANGE;
      if(turning){
-       highTurnRange = 10;
-     } 
+       maxTurnRange = TURNING_TURN_RANGE;
+     } else {
+       maxTurnRange = MAX_TURN_RANGE;
+     }
      
      //Base turning range off of distance
-     int turnRange = constrain(map(distance, 0, 100, 5, 50), 5, highTurnRange);     
+     int turnRange = constrain(map(distance, CONSTRAIN_MIN, CONSTRAIN_MAX, MIN_TURN_RANGE, maxTurnRange), MIN_TURN_RANGE, maxTurnRange);     
      int turndirection = getdirection(currentHeading, destheading);
 
      if(abs(currentHeading - destheading) < turnRange){
@@ -355,10 +371,10 @@ int getdirection( int currentHeading, int destheading ){
  */
  void forward(){
   dataStruct.tar = 20;
-  dataStruct.val = 25;
+  dataStruct.val = mSpeed / 2;
   etData.sendData();
   dataStruct.tar = 21;
-  dataStruct.val = -25;
+  dataStruct.val = -mSpeed / 2;
   etData.sendData();
   Serial.print("forward ");
  }
@@ -368,10 +384,10 @@ int getdirection( int currentHeading, int destheading ){
  */
  void left(){
   dataStruct.tar = 20;
-  dataStruct.val = 65;
+  dataStruct.val = mSpeed;
   etData.sendData();
   dataStruct.tar = 21;
-  dataStruct.val = -65;
+  dataStruct.val = -mSpeed;
   etData.sendData();
   Serial.print("left ");
  }
@@ -381,10 +397,10 @@ int getdirection( int currentHeading, int destheading ){
  */
  void right(){
   dataStruct.tar = 20;
-  dataStruct.val = -65;
+  dataStruct.val = -mSpeed;
   etData.sendData();
   dataStruct.tar = 21;
-  dataStruct.val = 65;
+  dataStruct.val = mSpeed;
   etData.sendData();
   Serial.print("right ");
  }
