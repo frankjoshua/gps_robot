@@ -9,13 +9,15 @@
 */
 
 #define PIN_GPS 2
-
+#include <Adafruit_NeoPixel.h>
+#include <TargetRegistration.h>
 #include <TinyGPS.h>
 #include <SoftwareSerial.h>
 #include <Wire.h> //Needed by the Adafruit BNO055 library
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BNO055.h>
 #include <EasyTransfer.h>
+#include <Servo.h> 
 
 /** Edit these to tune navigation */
 //Minimumn distance in meters to waypoint
@@ -61,22 +63,16 @@ int mHeadingOffset = 0;
 /** Compass */
 Adafruit_BNO055 bno = Adafruit_BNO055(55);
 
-//START Easy Transfer
-EasyTransfer etData;
-struct COM_DATA_STRUCTURE{
-  //put your variable definitions here for the data you want to receive
-  //THIS MUST BE EXACTLY THE SAME ON THE OTHER ARDUINO
-  int tar;
-  int cmd;
-  int val;
-  int dur;
-};
-
-//give a name to the group of data
-COM_DATA_STRUCTURE dataStruct;
-//END Easy Transfer
-
 SoftwareSerial SWSerial(4, 5);
+
+//Used to talk to the TargetRegistration library
+ClientTarget clientTarget;
+
+//Servos to calibrate the compass
+Servo mPanServo;
+Servo mTiltServo;
+#define PAN_PIN 7
+#define TILT_PIN 6
 
 /**
   * Read gps a return true if new data found
@@ -184,16 +180,28 @@ void updateCompassHeading(){
 //    mCompassHeading = (float) vector.z();
     
   bno.getEvent(&event);
-  Serial.print("X: ");
-  Serial.print(event.orientation.x, 4);
-  Serial.print("\tY: ");
-  Serial.print(event.orientation.y, 4);
-  Serial.print("\tZ: ");
-  Serial.print(event.orientation.z, 4);
-  Serial.print("\tT: ");
-  Serial.print(event.timestamp);
-  Serial.println("");
-  mCompassHeading = event.orientation.x; 
+//  vector = bno.getVector(Adafruit_BNO055::VECTOR_MAGNETOMETER);
+//  Serial.print("X: ");
+//  Serial.print(event.orientation.x, 4);
+//  Serial.print("\tY: ");
+//  Serial.print(event.orientation.y, 4);
+//  Serial.print("\tZ: ");
+//  Serial.print(event.orientation.z, 4);
+//  Serial.print("\tT: ");
+//  Serial.print(event.timestamp);
+//  Serial.println("");
+//float Pi = 3.14159;
+//  mCompassHeading = (atan2(vector.y(), vector.x()) * 180) / Pi;
+//  if(mCompassHeading < 0){
+//     mCompassHeading += 360; 
+//  }
+  
+  mCompassHeading = event.orientation.x + mHeadingOffset;
+  if(mCompassHeading > 360){
+    mCompassHeading -= 360;
+  } else if (mCompassHeading < 0){
+     mCompassHeading += 360;
+  }
 //  float heading = atan2(event.orientation.y, event.orientation.x);
 //  
 //  // Once you have your heading, you must then add your 'Declination Angle', which is the 'Error' of the magnetic field in your location.
@@ -204,16 +212,16 @@ void updateCompassHeading(){
 //  heading += declinationAngle;
 //
 //  // Correct for when signs are reversed.
-//  if(heading < 0)
-//    heading += 2*PI;
+//  if(mCompassHeading < 0)
+//    mCompassHeading += 2*PI;
 //      
 //  // Check for wrap due to addition of declination.
-//  if(heading > 2*PI)
-//    heading -= 2*PI;
+//  if(mCompassHeading > 2*PI)
+//    mCompassHeading -= 2*PI;
 // 
 //  // Convert radians to degrees for readability.
-//  mCompassHeading = heading * 180/M_PI; 
-
+   //mCompassHeading = mCompassHeading * 180/M_PI; 
+    //mCompassHeading = event.orientation.x;
 }
   
 void setup() {
@@ -221,12 +229,15 @@ void setup() {
     Serial.begin(115200);
     Serial.println("Starting...");
     
-    SWSerial.begin(115200);
+    SWSerial.begin(COM_SPEED);
     
     //Start Compass
     bno.begin();
+    //Compass Calibration data
+    byte c_data[22] = {1, 0, 252, 255, 21, 0, 130, 255, 97, 0, 82, 2, 1, 0, 1, 0, 0, 0, 232, 3, 151, 4};
+    bno.setCalibData(c_data);
     bno.setExtCrystalUse(true);
-    
+    Serial.println("Compass Started");
     //Set gps 9600 baud
     mGpsSerial.begin(9600);
     
@@ -244,19 +255,104 @@ void setup() {
     mLat[5] = 38.637919;
     mLon[5] = -90.272353;
     
-    //Start EasyTransfer
-    etData.begin(details(dataStruct), &SWSerial);
+    //Start TargetRegistration library
+    SWSerial.begin(COM_SPEED);
+    clientTarget.begin(NEO_PIN, &SWSerial);
+    //Serial.println("Client  started.");
+    //Register as Listener
+    clientTarget.registerListener(TARGET_SERVO_PAN);
+    clientTarget.registerListener(TARGET_SERVO_TILT);
+    clientTarget.registerListener(TARGET_GPS);
+    Serial.println("Registration Complete");
+    
+    //Calibrate BNO055 by moving in a random figure 8
+    mPanServo.attach(PAN_PIN);
+    mTiltServo.attach(TILT_PIN);
+    int high = 170;
+    int low = 10;
+    for(int loops = 1; loops > 0; loops--){
+      for(int pos = low; pos <= high; pos += 1) {
+        mPanServo.write(pos);
+        mTiltServo.write(pos);
+        delay(15);
+      } 
+      for(int pos = low; pos <= high; pos += 1) {
+        mPanServo.write(high - pos);
+        mTiltServo.write(pos);
+        delay(15);
+      }
+      for(int pos = low; pos <= high; pos += 1) {
+        mPanServo.write(pos);
+        mTiltServo.write(180 - pos);
+        delay(15);
+      }
+      for(int pos = low; pos <= high; pos += 1) {
+        mPanServo.write(high - pos);
+        mTiltServo.write(high - pos);
+        delay(15);
+      }
+    }
+    mPanServo.write(90);
+    mTiltServo.write(180);   
 }
 
 void loop() {
-    delay(100);
+    delay(50);
+    //Check for commands
+    if(clientTarget.receiveData()){
+      int tar = clientTarget.getTarget();
+      int cmd = clientTarget.getCommand();
+      int val = clientTarget.getValue();
+      
+      switch(tar){
+         case TARGET_SERVO_PAN:
+           mPanServo.write(constrain(val, 0, 180));
+         break; 
+         case TARGET_SERVO_TILT:
+           mTiltServo.write(constrain(val, 0, 180));
+         break; 
+         case TARGET_GPS:
+           handleCommand(cmd, val);
+         break; 
+      }
+    }
+      
+    
     //Read from gps
     if (feedgps()){
       //Dump gps if new data
       gpsdump(mGps);
     }
+    //mPanServo.write(map(analogRead(A0), 0, 1024, 180, 0));
+    //mTiltServo.write(map(analogRead(A1), 0, 1024, 180, 0));
+    //mHeadingOffset = map(analogRead(A0), 0, 1024, 360, -360);
     updateCompassHeading();
     transmitHeading();
+}
+
+void handleCommand(int cmd, int val){
+   switch(cmd){
+            case COMMAND_SET_WAYPOINT:
+              //Set to current position
+              mLat[mCurrentWayPoint] = flat;
+              mLon[mCurrentWayPoint] = flon;
+            break;
+            case COMMAND_REMOVE_WAYPOINT:
+              //Would be better to reorder the list in the future
+              mLat[mCurrentWayPoint] = 0;
+              mLon[mCurrentWayPoint] = 0;
+            break;
+            case COMMAND_NEXT_WAYPOINT:
+              if(mCurrentWayPoint < MAX_WAYPOINTS){
+                mCurrentWayPoint++; 
+              }
+            break;
+            case COMMAND_LAST_WAYPOINT:
+              if(mCurrentWayPoint > 0){
+                mCurrentWayPoint--;
+              }
+            break;
+  }
 }
 
 /**
@@ -357,12 +453,8 @@ int getdirection( int currentHeading, int destheading ){
  * Send stop command
  */
  void stop(){
-   dataStruct.tar = 20;
-   dataStruct.val = 0;
-   etData.sendData();
-   dataStruct.tar = 21;
-   dataStruct.val = 0;
-   etData.sendData();
+   clientTarget.sendData(TARGET_MOTOR_LEFT, 0, 0, 0);
+   clientTarget.sendData(TARGET_MOTOR_RIGHT, 0, 0, 0);
    Serial.print("stop ");
  }
  
@@ -370,12 +462,8 @@ int getdirection( int currentHeading, int destheading ){
  * Send forward command
  */
  void forward(){
-  dataStruct.tar = 20;
-  dataStruct.val = mSpeed / 2;
-  etData.sendData();
-  dataStruct.tar = 21;
-  dataStruct.val = -mSpeed / 2;
-  etData.sendData();
+//   clientTarget.sendData(TARGET_MOTOR_LEFT, 0, mSpeed / 2, 0);
+//   clientTarget.sendData(TARGET_MOTOR_RIGHT, 0, -mSpeed / 2, 0);
   Serial.print("forward ");
  }
  
@@ -383,12 +471,8 @@ int getdirection( int currentHeading, int destheading ){
  * Send left command
  */
  void left(){
-  dataStruct.tar = 20;
-  dataStruct.val = mSpeed;
-  etData.sendData();
-  dataStruct.tar = 21;
-  dataStruct.val = -mSpeed;
-  etData.sendData();
+//  clientTarget.sendData(TARGET_MOTOR_LEFT, 0, mSpeed, 0);
+//  clientTarget.sendData(TARGET_MOTOR_RIGHT, 0, -mSpeed, 0);
   Serial.print("left ");
  }
  
@@ -396,11 +480,7 @@ int getdirection( int currentHeading, int destheading ){
  * Send right command
  */
  void right(){
-  dataStruct.tar = 20;
-  dataStruct.val = -mSpeed;
-  etData.sendData();
-  dataStruct.tar = 21;
-  dataStruct.val = mSpeed;
-  etData.sendData();
+//  clientTarget.sendData(TARGET_MOTOR_LEFT, 0, -mSpeed, 0);
+//  clientTarget.sendData(TARGET_MOTOR_RIGHT, 0, mSpeed, 0);
   Serial.print("right ");
  }
